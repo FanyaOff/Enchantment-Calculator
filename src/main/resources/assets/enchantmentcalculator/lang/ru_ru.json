@@ -1,0 +1,19 @@
+{
+  "gui.enchantmentcalculator.title": "Калькулятор зачарований",
+  "gui.enchantmentcalculator.button": "Калькулятор",
+  "gui.enchantmentcalculator.enchantments": "Зачарования",
+  "gui.enchantmentcalculator.results": "Результаты",
+  "gui.enchantmentcalculator.calculate": "Рассчитать",
+  "gui.enchantmentcalculator.optimization": "Оптимизировать: %s",
+  "gui.enchantmentcalculator.mode.levels": "Уровни",
+  "gui.enchantmentcalculator.mode.experience": "Опыт",
+  "gui.enchantmentcalculator.select_enchantments": "Выберите зачарования для расчета",
+  "gui.enchantmentcalculator.combine": "Совместить %s с %s",
+  "gui.enchantmentcalculator.book_display": "Книга (%s)",
+  "gui.enchantmentcalculator.result.found": "Найдено оптимальное решение!",
+  "gui.enchantmentcalculator.result.total_cost": "Общая стоимость: %d уровней (%d опыта)",
+  "gui.enchantmentcalculator.result.steps": "Шаги:",
+  "gui.enchantmentcalculator.result.cost": "Стоимость: %d уровней (%d опыта)",
+  "gui.enchantmentcalculator.result.prior_work": "Предыдущий штраф: %d уровней",
+  "gui.enchantmentcalculator.result.note": "Примечание: значения опыта представляют разницу между экономией всех уровней сразу и получением уровней между каждым этапом зачарования."
+}

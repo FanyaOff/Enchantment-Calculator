@@ -1,0 +1,19 @@
+{
+  "gui.enchantmentcalculator.title": "Enchantment Calculator",
+  "gui.enchantmentcalculator.button": "Calculator",
+  "gui.enchantmentcalculator.enchantments": "Enchantments",
+  "gui.enchantmentcalculator.results": "Results",
+  "gui.enchantmentcalculator.calculate": "Calculate",
+  "gui.enchantmentcalculator.optimization": "Optimize for: %s",
+  "gui.enchantmentcalculator.mode.levels": "Levels",
+  "gui.enchantmentcalculator.mode.experience": "Experience",
+  "gui.enchantmentcalculator.select_enchantments": "Select enchantments to calculate",
+  "gui.enchantmentcalculator.combine": "Combine %s with %s",
+  "gui.enchantmentcalculator.book_display": "Book (%s)",
+  "gui.enchantmentcalculator.result.found": "Optimal solution found!",
+  "gui.enchantmentcalculator.result.total_cost": "Total cost: %d levels (%d XP)",
+  "gui.enchantmentcalculator.result.steps": "Steps:",
+  "gui.enchantmentcalculator.result.cost": "Cost: %d levels (%d XP)",
+  "gui.enchantmentcalculator.result.prior_work": "Prior work penalty: %d levels",
+  "gui.enchantmentcalculator.result.note": "Note: XP values represent the difference between saving all levels at once vs gaining levels between each enchanting step."
+}

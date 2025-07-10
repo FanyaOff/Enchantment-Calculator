@@ -1,11 +1,13 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "com.fanya.enchantmentcalculator.mixin",
+  "package": "com.fanya.enchantmentcalculator.client.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+
   ],
   "client": [
+    "AnvilScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
