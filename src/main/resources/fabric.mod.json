@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "enchantmentcalculator",
+  "version": "1.0.0",
+  "name": "Enchantments Calculator",
+  "description": "Calculate optimal enchantment paths to save levels",
+  "authors": [
+    "Fanya"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/enchantmentcalculator/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "main": [
+      "com.fanya.enchantmentcalculator.EnchantmentCalculatorMod"
+    ],
+    "client": [
+      "com.fanya.enchantmentcalculator.client.EnchantmentCalculatorClient"
+    ]
+  },
+  "mixins": [
+    "enchantmentcalculator.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": ">=1.21",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

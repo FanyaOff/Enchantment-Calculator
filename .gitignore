@@ -1,0 +1,35 @@
+# IntelliJ IDEA
+.idea/
+*.iml
+out/
+*.ipr
+*.iws
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+gradle-app.setting
+
+# Minecraft specific
+run/
+logs/
+*.log
+*.lck
+*.db
+*.zip
+*.jar
+*.tmp
+
+# OS-specific
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Java
+*.class
+
+# Fabric development
+remappedSrc/
+.cache/
