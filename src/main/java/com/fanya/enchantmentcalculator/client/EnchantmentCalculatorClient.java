@@ -3,7 +3,6 @@ package com.fanya.enchantmentcalculator.client;
 import com.fanya.enchantmentcalculator.EnchantmentCalculatorMod;
 import com.fanya.enchantmentcalculator.data.EnchantmentData;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 

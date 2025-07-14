@@ -1,4 +1,4 @@
-package com.fanya.enchantmentcalculator.client.gui.widget;
+package com.fanya.enchantmentcalculator.client.gui;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -13,14 +13,14 @@ import java.util.function.BiConsumer;
 
 public class EnchantmentButton extends ButtonWidget {
     // Приятные цвета
-    private static final int BUTTON_NORMAL = 0xFFC6C6C6;       // Обычная кнопка
-    private static final int BUTTON_HOVER = 0xFFE0E0E0;        // При наведении
-    private static final int BUTTON_SELECTED = 0xFF9ACD32;     // Выбранная (желто-зеленый)
-    private static final int BUTTON_DISABLED = 0xFF888888;     // Отключенная
-    private static final int BORDER_LIGHT = 0xFFFFFFFF;        // Светлая граница
-    private static final int BORDER_DARK = 0xFF555555;         // Темная граница
-    private static final int TEXT_COLOR = 0xFF000000;          // Черный текст
-    private static final int TEXT_DISABLED = 0xFF666666;       // Серый текст для отключенных
+    private static final int BUTTON_NORMAL = 0xFFC6C6C6;
+    private static final int BUTTON_HOVER = 0xFFE0E0E0;
+    private static final int BUTTON_SELECTED = 0xFF9ACD32;
+    private static final int BUTTON_DISABLED = 0xFF888888;
+    private static final int BORDER_LIGHT = 0xFFFFFFFF;
+    private static final int BORDER_DARK = 0xFF555555;
+    private static final int TEXT_COLOR = 0xFF000000;
+    private static final int TEXT_DISABLED = 0xFF666666;
 
     private final Enchantment enchantment;
     private final int maxLevel;
@@ -31,7 +31,7 @@ public class EnchantmentButton extends ButtonWidget {
     public EnchantmentButton(int x, int y, int width, int height,
                              Enchantment enchantment, int maxLevel,
                              BiConsumer<Enchantment, Integer> changeListener) {
-        super(x, y, width, height, getButtonText(enchantment, 0, maxLevel),
+        super(x, y, width, height, getButtonText(enchantment, 0),
                 button -> {}, DEFAULT_NARRATION_SUPPLIER);
         this.enchantment = enchantment;
         this.maxLevel = maxLevel;
@@ -53,12 +53,12 @@ public class EnchantmentButton extends ButtonWidget {
     }
 
     private void updateMessage() {
-        this.setMessage(getButtonText(enchantment, currentLevel, maxLevel));
+        this.setMessage(getButtonText(enchantment, currentLevel));
     }
 
-    private static Text getButtonText(Enchantment ench, int level, int max) {
-        String raw = getEnchantmentDisplayName(ench).getString();        // «Blast Protection»
-        if (raw.endsWith(" I")) raw = raw.substring(0, raw.length() - 2); // защита от странных переводов
+    private static Text getButtonText(Enchantment ench, int level) {
+        String raw = getEnchantmentDisplayName(ench).getString();
+        if (raw.endsWith(" I")) raw = raw.substring(0, raw.length() - 2);
         if (level == 0) {
             return Text.literal(raw).formatted(Formatting.GRAY);
         } else {
@@ -92,11 +92,9 @@ public class EnchantmentButton extends ButtonWidget {
 
     @Override
     public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
-        // Рисуем кнопку с приятными цветами
         drawMinecraftButton(context, this.getX(), this.getY(), this.width, this.height,
                 this.isHovered(), enabled, currentLevel > 0);
 
-        // Текст с правильными цветами
         int textColor = enabled ? TEXT_COLOR : TEXT_DISABLED;
         context.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer,
                 this.getMessage(), this.getX() + this.width / 2,
@@ -105,32 +103,26 @@ public class EnchantmentButton extends ButtonWidget {
 
     private void drawMinecraftButton(DrawContext context, int x, int y, int width, int height,
                                      boolean hovered, boolean enabled, boolean selected) {
-        // Основной цвет кнопки
         int baseColor;
         if (!enabled) {
             baseColor = BUTTON_DISABLED;
         } else if (selected) {
-            baseColor = BUTTON_SELECTED; // Приятный желто-зеленый
+            baseColor = BUTTON_SELECTED;
         } else if (hovered) {
             baseColor = BUTTON_HOVER;
         } else {
             baseColor = BUTTON_NORMAL;
         }
 
-        // Фон кнопки
         context.fill(x, y, x + width, y + height, baseColor);
 
-        // Границы кнопки (3D эффект)
         if (enabled && !selected) {
-            // Светлые границы сверху и слева
             context.fill(x, y, x + width - 1, y + 1, BORDER_LIGHT);
             context.fill(x, y, x + 1, y + height - 1, BORDER_LIGHT);
 
-            // Темные границы снизу и справа
             context.fill(x + 1, y + height - 1, x + width, y + height, BORDER_DARK);
             context.fill(x + width - 1, y + 1, x + width, y + height - 1, BORDER_DARK);
         } else {
-            // Вдавленная кнопка
             context.fill(x, y, x + width - 1, y + 1, BORDER_DARK);
             context.fill(x, y, x + 1, y + height - 1, BORDER_DARK);
 
@@ -141,10 +133,6 @@ public class EnchantmentButton extends ButtonWidget {
 
     public Enchantment getEnchantment() {
         return enchantment;
-    }
-
-    public int getCurrentLevel() {
-        return currentLevel;
     }
 
     public void setLevel(int level) {
@@ -160,12 +148,5 @@ public class EnchantmentButton extends ButtonWidget {
             updateMessage();
             changeListener.accept(enchantment, 0);
         }
-    }
-
-    public void reset() {
-        currentLevel = 0;
-        enabled = true;
-        active = true;
-        updateMessage();
     }
 }

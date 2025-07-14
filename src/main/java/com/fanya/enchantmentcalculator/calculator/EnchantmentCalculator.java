@@ -27,19 +27,11 @@ public class EnchantmentCalculator {
             String displayName = enchantName + (enchant.level() > 1 ? " " + enchant.level() : "");
 
             List<String> bookEnchantments = List.of(displayName);
-            items.add(new EnchantItem("Книга (" + displayName + ")", bookCost, false, 0, bookEnchantments));
-        }
-
-        EnchantmentCalculatorMod.LOGGER.info("=== ОТЛАДКА ПРЕДМЕТОВ ===");
-        for (int i = 0; i < items.size(); i++) {
-            EnchantItem item = items.get(i);
-            EnchantmentCalculatorMod.LOGGER.info("  {}: {} cost={} isItem={} anvilCost={}",
-                    i, item.name, item.enchantmentCost, item.isItem, item.anvilCost);
+            String bookName = Text.translatable("enchantmentcalculator.book", displayName).getString();
+            items.add(new EnchantItem(bookName, bookCost, false, 0, bookEnchantments));
         }
 
         TreeResult result = findOptimalTree(items, mode);
-
-        logResult(itemName, enchantments, mode, result);
 
         return new CalculationResult(result.steps, result.totalLevels, result.totalExperience);
     }
@@ -77,10 +69,6 @@ public class EnchantmentCalculator {
 
         TreeResult bestResult = null;
         int bestCost = Integer.MAX_VALUE;
-        int treeIndex = 0;
-
-        EnchantmentCalculatorMod.LOGGER.info("=== ПОИСК ОПТИМАЛЬНОГО ДЕРЕВА ===");
-        EnchantmentCalculatorMod.LOGGER.info("Количество оптимальных деревьев: {}", optimalTrees.size());
 
         for (TreeStructure tree : optimalTrees) {
 
@@ -89,9 +77,6 @@ public class EnchantmentCalculator {
             TreeResult result = calculateTreeCost(tree, optimizedItems);
 
             int cost = (mode == OptimizationMode.LEVELS) ? result.totalLevels : result.totalExperience;
-            EnchantmentCalculatorMod.LOGGER.info("Дерево {}: cost={} (enchant={} + anvil={})",
-                    treeIndex++, cost, result.totalLevels - result.steps.stream().mapToInt(CalculationResult.Step::getPriorWorkPenalty).sum(),
-                    result.steps.stream().mapToInt(CalculationResult.Step::getPriorWorkPenalty).sum());
 
 
             if (cost < bestCost) {
@@ -100,17 +85,11 @@ public class EnchantmentCalculator {
             }
         }
 
-
-        EnchantmentCalculatorMod.LOGGER.info("Выбрано лучшее дерево с общей стоимостью: {}", bestCost);
-        EnchantmentCalculatorMod.LOGGER.info("=== КОНЕЦ ПОИСКА ОПТИМАЛЬНОГО ДЕРЕВА ===");
-
         return bestResult;
     }
 
     private static List<TreeStructure> generateOptimalTreeStructures(int n) {
         List<TreeStructure> allTrees = generateAllTreeStructures(n);
-        EnchantmentCalculatorMod.LOGGER.info("=== ГЕНЕРАЦИЯ ДЕРЕВЬЕВ ===");
-        EnchantmentCalculatorMod.LOGGER.info("Всего сгенерировано деревьев: {}", allTrees.size());
 
         Map<Integer, TreeStructure> bestByAnvilCost = new HashMap<>();
 
@@ -128,19 +107,6 @@ public class EnchantmentCalculator {
                 bestByAnvilCost.put(anvilCost, tree);
             }
         }
-
-        EnchantmentCalculatorMod.LOGGER.info("Отфильтрованные деревья по anvil cost:");
-        for (Map.Entry<Integer, TreeStructure> entry : bestByAnvilCost.entrySet()) {
-            int anvilCost = entry.getKey();
-            TreeStructure tree = entry.getValue();
-            int contributionsSum = tree.getLeafContributions().stream().mapToInt(Integer::intValue).sum();
-            List<Integer> contributions = tree.getLeafContributions();
-            EnchantmentCalculatorMod.LOGGER.info("  AnvilCost={}, ContributionsSum={}, Contributions={}",
-                    anvilCost, contributionsSum, contributions);
-        }
-        EnchantmentCalculatorMod.LOGGER.info("=== КОНЕЦ ГЕНЕРАЦИИ ДЕРЕВЬЕВ ===");
-
-
         return new ArrayList<>(bestByAnvilCost.values());
     }
 
@@ -185,7 +151,7 @@ public class EnchantmentCalculator {
 
         for (int i = 0; i < result.size(); i++) {
             if (result.get(i) == null) {
-                EnchantmentCalculatorMod.LOGGER.error("Позиция {} не заполнена! Contributions: {}", i, contributions);
+                EnchantmentCalculatorMod.LOGGER.error("Position {} not filled! Contributions: {}", i, contributions);
                 for (EnchantItem item : items) {
                     if (!result.contains(item)) {
                         result.set(i, item);
@@ -215,9 +181,8 @@ public class EnchantmentCalculator {
 
     private static TreeNode buildTreeWithItems(TreeStructure structure, List<EnchantItem> items, int startIndex, List<CalculationResult.Step> steps) {
         if (structure.left == null && structure.right == null) {
-            // Лист дерева
             if (startIndex >= items.size()) {
-                EnchantmentCalculatorMod.LOGGER.error("Индекс {} выходит за границы списка размером {}", startIndex, items.size());
+                EnchantmentCalculatorMod.LOGGER.error("Index {} is unbound from list {}", startIndex, items.size());
                 return null;
             }
             return new TreeNode(items.get(startIndex), 0, 0);
@@ -229,7 +194,7 @@ public class EnchantmentCalculator {
         TreeNode rightNode = buildTreeWithItems(structure.right, items, rightStartIndex, steps);
 
         if (leftNode == null || rightNode == null || leftNode.item == null || rightNode.item == null) {
-            EnchantmentCalculatorMod.LOGGER.error("Один из узлов равен null: leftNode={}, rightNode={}", leftNode, rightNode);
+            EnchantmentCalculatorMod.LOGGER.error("one of node is null: leftNode={}, rightNode={}", leftNode, rightNode);
             return null;
         }
 
@@ -251,18 +216,8 @@ public class EnchantmentCalculator {
         String leftName = leftNode.item.name;
         String rightName = rightNode.item.name;
 
-        EnchantmentCalculatorMod.LOGGER.info("=== ОБЪЕДИНЕНИЕ ===");
-        EnchantmentCalculatorMod.LOGGER.info("Левый: {} (cost={}, anvilCost={})", leftName, leftNode.item.enchantmentCost, leftAnvilCost);
-        EnchantmentCalculatorMod.LOGGER.info("Правый: {} (cost={}, anvilCost={})", rightName, rightNode.item.enchantmentCost, rightAnvilCost);
-        EnchantmentCalculatorMod.LOGGER.info("Стоимость зачарования: {}", enchantmentCost);
-        EnchantmentCalculatorMod.LOGGER.info("Штраф за предыдущую работу: {} (left={} + right={})", priorWorkPenalty,
-                leftAnvilCost < ANVIL_COST_MULTIPLIERS.length ? ANVIL_COST_MULTIPLIERS[leftAnvilCost] : 0,
-                rightAnvilCost < ANVIL_COST_MULTIPLIERS.length ? ANVIL_COST_MULTIPLIERS[rightAnvilCost] : 0);
-        EnchantmentCalculatorMod.LOGGER.info("Общая стоимость объединения: {}", mergeCost);
-        EnchantmentCalculatorMod.LOGGER.info("Новый anvil cost: {}", newAnvilCost);
-
         int experience = calculateExperience(mergeCost);
-        String description = Text.translatable("gui.enchantmentcalculator.combine", leftName, rightName).getString();
+        String description = Text.translatable("enchantmentcalculator.combine", leftName, rightName).getString();
         steps.add(new CalculationResult.Step(description, mergeCost, experience, priorWorkPenalty));
 
         String combinedName;
@@ -278,12 +233,11 @@ public class EnchantmentCalculator {
                 combinedName = combinedName + " (" + String.join(", ", combinedEnchantments) + ")";
             }
         } else {
-            String leftContent = extractBookContent(leftName);
-            String rightContent = extractBookContent(rightName);
-            combinedName = "Книга (" + leftContent + " + " + rightContent + ")";
-
             combinedEnchantments.addAll(leftNode.item.enchantments);
             combinedEnchantments.addAll(rightNode.item.enchantments);
+
+            String enchantmentsList = String.join(", ", combinedEnchantments);
+            combinedName = Text.translatable("enchantmentcalculator.book", enchantmentsList).getString();
         }
 
         EnchantItem combinedItem = new EnchantItem(combinedName,
@@ -303,13 +257,6 @@ public class EnchantmentCalculator {
         return itemName;
     }
 
-    private static String extractBookContent(String bookName) {
-        if (bookName.startsWith("Книга (") && bookName.endsWith(")")) {
-            return bookName.substring(7, bookName.length() - 1);
-        }
-        return bookName;
-    }
-
     private static TreeResult calculateSimpleCombination(List<EnchantItem> items) {
         if (items.size() != 2) {
             throw new IllegalArgumentException("Simple combination requires exactly 2 items");
@@ -325,7 +272,7 @@ public class EnchantmentCalculator {
         int mergeCost = enchantmentCost + priorWorkPenalty;
         int experience = calculateExperience(mergeCost);
 
-        String description = Text.translatable("gui.enchantmentcalculator.combine", left.name, right.name).getString();
+        String description = Text.translatable("enchantmentcalculator.combine", left.name, right.name).getString();
         steps.add(new CalculationResult.Step(description, mergeCost, experience, priorWorkPenalty));
 
         return new TreeResult(steps, mergeCost, experience);
@@ -395,27 +342,6 @@ public class EnchantmentCalculator {
             return id.replace("_", " ");
         }
     }
-
-    private static void logResult(String itemName, List<EnchantmentCombination> enchantments, OptimizationMode mode, TreeResult result) {
-        EnchantmentCalculatorMod.LOGGER.info("=== РЕЗУЛЬТАТ КАЛЬКУЛЯТОРА ===");
-        EnchantmentCalculatorMod.LOGGER.info("Предмет: {}", itemName);
-        EnchantmentCalculatorMod.LOGGER.info("Выбранные зачарования:");
-        for (EnchantmentCombination enchant : enchantments) {
-            EnchantmentCalculatorMod.LOGGER.info("  - {} {}",
-                    getEnchantmentDisplayName(getEnchantmentId(enchant.enchantment())), enchant.level());
-        }
-        EnchantmentCalculatorMod.LOGGER.info("Режим оптимизации: {}", mode);
-        EnchantmentCalculatorMod.LOGGER.info("Общая стоимость: {} уровней ({} опыта)", result.totalLevels, result.totalExperience);
-        EnchantmentCalculatorMod.LOGGER.info("Пошаговые инструкции:");
-        for (int i = 0; i < result.steps.size(); i++) {
-            CalculationResult.Step step = result.steps.get(i);
-            EnchantmentCalculatorMod.LOGGER.info("{}. {}", (i + 1), step.getDescription());
-            EnchantmentCalculatorMod.LOGGER.info("   Стоимость: {} уровней ({} опыта)", step.getLevels(), step.getExperience());
-            EnchantmentCalculatorMod.LOGGER.info("   Предыдущий штраф: {} уровней", step.getPriorWorkPenalty());
-        }
-        EnchantmentCalculatorMod.LOGGER.info("=== КОНЕЦ РЕЗУЛЬТАТА ===");
-    }
-
     // help classes
 
     private static class EnchantItem {

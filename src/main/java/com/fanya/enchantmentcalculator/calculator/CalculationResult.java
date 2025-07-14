@@ -5,12 +5,10 @@ import java.util.List;
 public class CalculationResult {
     private final List<Step> steps;
     private final int totalLevels;
-    private final int totalExperience;
 
     public CalculationResult(List<Step> steps, int totalLevels, int totalExperience) {
         this.steps = steps;
         this.totalLevels = totalLevels;
-        this.totalExperience = totalExperience;
     }
 
     public List<Step> getSteps() {
@@ -19,10 +17,6 @@ public class CalculationResult {
 
     public int getTotalLevels() {
         return totalLevels;
-    }
-
-    public int getTotalExperience() {
-        return totalExperience;
     }
 
     public static class Step {

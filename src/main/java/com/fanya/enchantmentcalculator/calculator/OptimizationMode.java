@@ -4,7 +4,7 @@ import net.minecraft.text.Text;
 
 public enum OptimizationMode {
     LEVELS("Levels"),
-    EXPERIENCE("Experience");
+    EXPERIENCE("Experience"); // WIP
 
     private final String name;
 

@@ -1,17 +1,18 @@
 package com.fanya.enchantmentcalculator.client.mixin;
 
+import com.fanya.enchantmentcalculator.EnchantmentCalculatorMod;
 import com.fanya.enchantmentcalculator.calculator.CalculationResult;
 import com.fanya.enchantmentcalculator.calculator.EnchantmentCalculator;
 import com.fanya.enchantmentcalculator.calculator.EnchantmentCombination;
 import com.fanya.enchantmentcalculator.calculator.OptimizationMode;
-import com.fanya.enchantmentcalculator.client.gui.widget.EnchantmentButton;
+import com.fanya.enchantmentcalculator.client.gui.CustomButtonHelper;
+import com.fanya.enchantmentcalculator.client.gui.EnchantmentButton;
 import com.fanya.enchantmentcalculator.data.EnchantmentData;
 import com.fanya.enchantmentcalculator.data.EnchantmentInfo;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.AnvilScreen;
 import net.minecraft.client.gui.screen.ingame.ForgingScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.CyclingButtonWidget;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
@@ -27,26 +28,31 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.*;
 
+
 @Mixin(AnvilScreen.class)
 public abstract class AnvilScreenMixin extends ForgingScreen<AnvilScreenHandler> {
-    // Приятные цвета в стиле Minecraft
+
     @Unique
-    private static final int PANEL_BG = 0xE0C6C6C6;           // Светло-серый фон
+    private static int LEFT_PANEL_DISTANCE = 21;
     @Unique
-    private static final int PANEL_BORDER_LIGHT = 0xFFFFFFFF;  // Белая граница
+    private static int RIGHT_PANEL_DISTANCE = 0;
+
+
     @Unique
-    private static final int PANEL_BORDER_DARK = 0xFF555555;   // Темная граница
+    private static CalculationResult pinnedResult = null;
     @Unique
-    private static final int INSET_BG = 0xFF8B8B8B;           // Вдавленный фон
+    private static Map<Enchantment, Integer> pinnedEnchantments = new HashMap<>();
     @Unique
-    private static final int TEXT_COLOR     = 0xFFFFFFFF;
+    private static OptimizationMode pinnedOptimizationMode = OptimizationMode.LEVELS;
+    @Unique
+    private static ItemStack pinnedItem = ItemStack.EMPTY;
+    @Unique
+    private static boolean isPinned = false;
 
     @Unique
     private final List<EnchantmentButton> enchantmentButtons = new ArrayList<>();
     @Unique
     private final Map<Enchantment, Integer> selectedEnchantments = new HashMap<>();
-    @Unique
-    private final List<Text> resultLines = new ArrayList<>();
 
     @Unique
     private ButtonWidget calculateButton;
@@ -55,11 +61,14 @@ public abstract class AnvilScreenMixin extends ForgingScreen<AnvilScreenHandler>
     @Unique
     private ButtonWidget scrollDownButton;
     @Unique
-    private ButtonWidget resultScrollUpButton;
+    private ButtonWidget stepPrevButton;
     @Unique
-    private ButtonWidget resultScrollDownButton;
+    private ButtonWidget stepNextButton;
     @Unique
-    private CyclingButtonWidget<OptimizationMode> optimizationButton;
+    private ButtonWidget pinButton;
+    @Unique
+    private ButtonWidget resetButton;
+
     @Unique
     private OptimizationMode optimizationMode = OptimizationMode.LEVELS;
     @Unique
@@ -67,7 +76,7 @@ public abstract class AnvilScreenMixin extends ForgingScreen<AnvilScreenHandler>
     @Unique
     private int enchantmentScrollOffset = 0;
     @Unique
-    private int resultScrollOffset = 0;
+    private int currentStepIndex = 0;
     @Unique
     private boolean leftPanelVisible = false;
     @Unique
@@ -83,6 +92,16 @@ public abstract class AnvilScreenMixin extends ForgingScreen<AnvilScreenHandler>
 
     @Inject(method = "setup", at = @At("TAIL"))
     private void setupCalculatorPanel(CallbackInfo ci) {
+        if (isPinned && pinnedResult != null) {
+            lastResult = pinnedResult;
+            currentStepIndex = 0;
+            rightPanelVisible = true;
+            leftPanelVisible = false;
+            enchantmentCalculator$setupStepNavigation();
+            enchantmentCalculator$setupPinButton();
+            return;
+        }
+
         enchantmentCalculator$updatePanelVisibility();
         if (leftPanelVisible) {
             enchantmentCalculator$setupLeftPanel();
@@ -91,6 +110,8 @@ public abstract class AnvilScreenMixin extends ForgingScreen<AnvilScreenHandler>
 
     @Inject(method = "onSlotUpdate", at = @At("TAIL"))
     private void updatePanelOnSlotChange(ScreenHandler handler, int slotId, ItemStack stack, CallbackInfo ci) {
+        if (isPinned) return;
+
         if (slotId == 0) {
             ItemStack currentItem = this.handler.getSlot(0).getStack();
             if (!ItemStack.areEqual(currentItem, lastItem)) {
@@ -106,7 +127,7 @@ public abstract class AnvilScreenMixin extends ForgingScreen<AnvilScreenHandler>
 
     @Inject(method = "drawBackground", at = @At("TAIL"))
     private void renderCalculatorPanels(DrawContext context, float delta, int mouseX, int mouseY, CallbackInfo ci) {
-        if (leftPanelVisible) {
+        if (leftPanelVisible && !isPinned) {
             enchantmentCalculator$renderLeftPanel(context);
         }
         if (rightPanelVisible) {
@@ -121,98 +142,227 @@ public abstract class AnvilScreenMixin extends ForgingScreen<AnvilScreenHandler>
 
         availableEnchantments = EnchantmentData.getApplicableEnchantments(stack);
 
-        // Позиция левой панели - исправлено позиционирование
-        int leftPanelX = this.x - 185;
-        int startY = this.y + 40;
+        int leftPanelX = this.x - this.backgroundWidth - LEFT_PANEL_DISTANCE;
+        int leftPanelY = this.y;
+        int startY = leftPanelY + 10;
 
-        // Создаем видимые кнопки зачарований
-        enchantmentCalculator$updateEnchantmentButtons();
-
-        // Кнопки прокрутки для зачарований
-        scrollUpButton = ButtonWidget.builder(
-                        Text.literal("↑"),
-                        button -> {
-                            enchantmentScrollOffset = Math.max(0, enchantmentScrollOffset - 1);
-                            enchantmentCalculator$updateEnchantmentButtons();
-                        }
-                )
-                .dimensions(leftPanelX + 160, startY, 18, 15)
-                .build();
+        scrollUpButton = CustomButtonHelper.createButton(
+                leftPanelX + 165, startY, 20, 20,
+                CustomButtonHelper.ButtonType.UP,
+                button -> {
+                    enchantmentScrollOffset = Math.max(0, enchantmentScrollOffset - 1);
+                    enchantmentCalculator$updateEnchantmentButtons();
+                }
+        );
         this.addDrawableChild(scrollUpButton);
 
-        scrollDownButton = ButtonWidget.builder(
-                        Text.literal("↓"),
-                        button -> {
-                            int maxScroll = Math.max(0, availableEnchantments.size() - 6);
-                            enchantmentScrollOffset = Math.min(maxScroll, enchantmentScrollOffset + 1);
-                            enchantmentCalculator$updateEnchantmentButtons();
-                        }
-                )
-                .dimensions(leftPanelX + 160, startY + 17, 18, 15)
-                .build();
+        scrollDownButton = CustomButtonHelper.createButton(
+                leftPanelX + 165, startY + 20 + 2, 20, 20,
+                CustomButtonHelper.ButtonType.DOWN,
+                button -> {
+                    int maxScroll = Math.max(0, availableEnchantments.size() - 6);
+                    enchantmentScrollOffset = Math.min(maxScroll, enchantmentScrollOffset + 1);
+                    enchantmentCalculator$updateEnchantmentButtons();
+                }
+        );
         this.addDrawableChild(scrollDownButton);
 
-        // Кнопка оптимизации
-        optimizationButton = CyclingButtonWidget.builder(OptimizationMode::getDisplayName)
-                .values(OptimizationMode.values())
-                .initially(optimizationMode)
-                .build(leftPanelX + 8, startY + 135, 150, 18,
-                        Text.literal("Optimize: "),
-                        (button, mode) -> {
-                            this.optimizationMode = mode;
-                        });
-        this.addDrawableChild(optimizationButton);
-
-        // Кнопка расчета
-        calculateButton = ButtonWidget.builder(
-                        Text.literal("Calculate"),
-                        button -> enchantmentCalculator$calculate()
-                )
-                .dimensions(leftPanelX + 8, startY + 157, 150, 18)
-                .build();
+        calculateButton = CustomButtonHelper.createButton(
+                leftPanelX + 165, startY + 44, 20, 20,
+                CustomButtonHelper.ButtonType.CALCULATE,
+                button -> enchantmentCalculator$calculate()
+        );
         this.addDrawableChild(calculateButton);
 
+        resetButton = CustomButtonHelper.createButton(
+                leftPanelX + 165, startY + 66, 20, 20,
+                CustomButtonHelper.ButtonType.RESET,
+                button -> enchantmentCalculator$resetToDefault()
+        );
+        this.addDrawableChild(resetButton);
+
+        enchantmentCalculator$updateEnchantmentButtons();
         enchantmentCalculator$updateCalculateButton();
+        enchantmentCalculator$updateResetButton();
+    }
+
+    @Unique
+    private void enchantmentCalculator$setupStepNavigation() {
+        if (lastResult == null || lastResult.getSteps().isEmpty()) return;
+
+        int rightPanelX = this.x + this.backgroundWidth + RIGHT_PANEL_DISTANCE;
+        int rightPanelY = this.y + 166 - 30;
+
+        stepPrevButton = CustomButtonHelper.createButton(
+                rightPanelX + 10, rightPanelY, 12, 17,
+                CustomButtonHelper.ButtonType.BACKWARD,
+                button -> {
+                    if (currentStepIndex > 0) {
+                        currentStepIndex--;
+                    }
+                }
+        );
+        this.addDrawableChild(stepPrevButton);
+
+        stepNextButton = CustomButtonHelper.createButton(
+                rightPanelX + 200 - 22, rightPanelY, 12, 17,
+                CustomButtonHelper.ButtonType.FORWARD,
+                button -> {
+                    if (lastResult != null && currentStepIndex < lastResult.getSteps().size() - 1) {
+                        currentStepIndex++;
+                    }
+                }
+        );
+        this.addDrawableChild(stepNextButton);
+    }
+
+    @Unique
+    private void enchantmentCalculator$setupPinButton() {
+        if (pinButton != null) {
+            this.remove(pinButton);
+            pinButton = null;
+        }
+
+        if ((lastResult != null && !lastResult.getSteps().isEmpty()) || isPinned) {
+            Text buttonText = isPinned ?
+                    Text.translatable("enchantmentcalculator.ui.unpin_result") :
+                    Text.translatable("enchantmentcalculator.ui.pin_result");
+
+            pinButton = ButtonWidget.builder(
+                            buttonText,
+                            button -> enchantmentCalculator$togglePin()
+                    )
+                    .dimensions(this.x, this.y + this.backgroundHeight + 5, this.backgroundWidth, 20)
+                    .build();
+            this.addDrawableChild(pinButton);
+        }
+    }
+
+    @Unique
+    private void enchantmentCalculator$renderLeftPanel(DrawContext context) {
+        int leftPanelX = this.x - this.backgroundWidth - LEFT_PANEL_DISTANCE;
+        int leftPanelY = this.y;
+
+        CustomButtonHelper.drawPanelTexture(context, leftPanelX, leftPanelY, 220, 166);
+
+        if (availableEnchantments.size() > 6) {
+            String scrollText = "(" + (enchantmentScrollOffset + 1) + "-" +
+                    Math.min(enchantmentScrollOffset + 6, availableEnchantments.size()) +
+                    "/" + availableEnchantments.size() + ")";
+            context.drawTextWithShadow(this.textRenderer, Text.literal(scrollText),
+                    leftPanelX + 10, leftPanelY + 166 - 15, 0xFF888888);
+        }
+    }
+
+    @Unique
+    private void enchantmentCalculator$renderRightPanel(DrawContext context) {
+        int rightPanelX = this.x + this.backgroundWidth + RIGHT_PANEL_DISTANCE;
+        int rightPanelY = this.y;
+
+        CustomButtonHelper.drawPanelTexture(context, rightPanelX, rightPanelY, 200, 166);
+
+        if (lastResult != null) {
+            Text costText = Text.translatable("enchantmentcalculator.ui.levels", lastResult.getTotalLevels())
+                    .formatted(Formatting.BOLD, Formatting.YELLOW);
+            context.drawCenteredTextWithShadow(this.textRenderer, costText,
+                    rightPanelX + 100, rightPanelY + 8, 0xFFFFFF);
+
+            if (!lastResult.getSteps().isEmpty() && currentStepIndex >= 0 && currentStepIndex < lastResult.getSteps().size()) {
+                CalculationResult.Step currentStep = lastResult.getSteps().get(currentStepIndex);
+                Text stepCostText = Text.translatable("enchantmentcalculator.ui.cost", currentStep.getLevels());
+                context.drawCenteredTextWithShadow(this.textRenderer, stepCostText,
+                        rightPanelX + 100, rightPanelY + 20, 0xFFAAAA);
+            }
+        }
+
+        enchantmentCalculator$renderStepsArea(context, rightPanelX + 10, rightPanelY + 35
+        );
+
+        enchantmentCalculator$renderStepNavigation(context, rightPanelX,
+                rightPanelY + 166 - 20);
+    }
+
+    @Unique
+    private void enchantmentCalculator$renderStepNavigation(DrawContext context, int x, int y) {
+        if (lastResult == null || lastResult.getSteps().isEmpty()) return;
+
+        int totalSteps = lastResult.getSteps().size();
+        Text stepIndicator = Text.translatable("enchantmentcalculator.ui.step",
+                currentStepIndex + 1, totalSteps);
+        int leftArrowEnd = x + 10 + 12;
+        int rightArrowStart = x + 200 - 22;
+        int centerBetweenArrows = (leftArrowEnd + rightArrowStart) / 2;
+
+        context.drawCenteredTextWithShadow(this.textRenderer, stepIndicator,
+                centerBetweenArrows, y - 5, 0xFFFFFF);
+
+        if (stepPrevButton != null) {
+            stepPrevButton.active = currentStepIndex > 0;
+        }
+        if (stepNextButton != null) {
+            stepNextButton.active = currentStepIndex < totalSteps - 1;
+        }
+    }
+
+    @Unique
+    private void enchantmentCalculator$renderStepsArea(DrawContext context, int x, int y) {
+        if (lastResult == null || lastResult.getSteps().isEmpty()) return;
+
+        if (currentStepIndex < 0 || currentStepIndex >= lastResult.getSteps().size()) {
+            currentStepIndex = 0;
+        }
+
+        context.fill(x, y, x + 180, y + 96, 0xFF8B8B8B);
+        context.fill(x, y, x + 180 - 1, y + 1, 0xFF555555);
+        context.fill(x, y, x + 1, y + 96 - 1, 0xFF555555);
+        context.fill(x + 1, y + 96 - 1, x + 180, y + 96, 0xFFFFFFFF);
+        context.fill(x + 180 - 1, y + 1, x + 180, y + 96 - 1, 0xFFFFFFFF);
+
+        CalculationResult.Step currentStep = lastResult.getSteps().get(currentStepIndex);
+        int textY = y + 10;
+
+        String description = currentStep.getDescription();
+        List<String> wrappedLines = enchantmentCalculator$wrapText(description);
+
+        for (String line : wrappedLines) {
+            context.drawTextWithShadow(this.textRenderer, Text.literal(line),
+                    x + 10, textY, 0xFFFFFF);
+            textY += 12;
+        }
     }
 
     @Unique
     private void enchantmentCalculator$updateEnchantmentButtons() {
-        // Очищаем старые кнопки
         enchantmentButtons.forEach(this::remove);
         enchantmentButtons.clear();
 
-        int leftPanelX = this.x - 185;
-        int startY = this.y + 40;
-        int currentY = startY;
+        int leftPanelX = this.x - this.backgroundWidth - LEFT_PANEL_DISTANCE;
+        int currentY = this.y + 10;
 
-        // Создаем только видимые кнопки (6 штук максимум)
         int visibleCount = 0;
         for (int i = enchantmentScrollOffset; i < availableEnchantments.size() && visibleCount < 6; i++) {
             Enchantment enchantment = availableEnchantments.get(i);
             EnchantmentInfo info = EnchantmentData.getEnchantmentInfo(enchantment);
             if (info != null) {
                 EnchantmentButton button = new EnchantmentButton(
-                        leftPanelX + 8, currentY, 150, 18,
+                        leftPanelX + 10, currentY, 150, 20,
                         enchantment, info.maxLevel(),
                         this::enchantmentCalculator$onEnchantmentChanged
                 );
 
-                // Восстанавливаем состояние кнопки
                 if (selectedEnchantments.containsKey(enchantment)) {
                     button.setLevel(selectedEnchantments.get(enchantment));
                 }
 
                 enchantmentButtons.add(button);
                 this.addDrawableChild(button);
-                currentY += 20;
+                currentY += 22;
                 visibleCount++;
             }
         }
 
-        // Обновляем совместимость
         enchantmentCalculator$updateEnchantmentCompatibility();
 
-        // Обновляем состояние кнопок прокрутки
         if (scrollUpButton != null) {
             scrollUpButton.active = enchantmentScrollOffset > 0;
         }
@@ -222,52 +372,189 @@ public abstract class AnvilScreenMixin extends ForgingScreen<AnvilScreenHandler>
     }
 
     @Unique
-    private void enchantmentCalculator$clearInterface() {
-        // Удаляем все элементы интерфейса
+    private void enchantmentCalculator$clearLeftPanelInterface() {
         enchantmentButtons.forEach(this::remove);
         enchantmentButtons.clear();
-
-        if (optimizationButton != null) {
-            this.remove(optimizationButton);
-            optimizationButton = null;
-        }
 
         if (calculateButton != null) {
             this.remove(calculateButton);
             calculateButton = null;
         }
-
         if (scrollUpButton != null) {
             this.remove(scrollUpButton);
             scrollUpButton = null;
         }
-
         if (scrollDownButton != null) {
             this.remove(scrollDownButton);
             scrollDownButton = null;
         }
+        if (resetButton != null) {
+            this.remove(resetButton);
+            resetButton = null;
+        }
+    }
 
-        if (resultScrollUpButton != null) {
-            this.remove(resultScrollUpButton);
-            resultScrollUpButton = null;
+    @Unique
+    private void enchantmentCalculator$clearInterface() {
+        enchantmentCalculator$clearLeftPanelInterface();
+
+        if (!isPinned) {
+            if (stepPrevButton != null) {
+                this.remove(stepPrevButton);
+                stepPrevButton = null;
+            }
+            if (stepNextButton != null) {
+                this.remove(stepNextButton);
+                stepNextButton = null;
+            }
+            enchantmentCalculator$clearResults();
+            rightPanelVisible = false;
         }
 
-        if (resultScrollDownButton != null) {
-            this.remove(resultScrollDownButton);
-            resultScrollDownButton = null;
+        if (pinButton != null) {
+            this.remove(pinButton);
+            pinButton = null;
         }
 
+        if (!isPinned) {
+            selectedEnchantments.clear();
+        }
+    }
+
+    @Unique
+    private void enchantmentCalculator$updateCalculateButton() {
+        if (calculateButton != null) {
+            calculateButton.active = !selectedEnchantments.isEmpty();
+        }
+    }
+
+    @Unique
+    private void enchantmentCalculator$updateResetButton() {
+        if (resetButton != null) {
+            resetButton.active = !selectedEnchantments.isEmpty() || (lastResult != null);
+        }
+    }
+
+    @Unique
+    private void enchantmentCalculator$calculate() {
+        if (selectedEnchantments.isEmpty()) return;
+
+        List<EnchantmentCombination> combinations = new ArrayList<>();
+        for (Map.Entry<Enchantment, Integer> entry : selectedEnchantments.entrySet()) {
+            combinations.add(new EnchantmentCombination(entry.getKey(), entry.getValue()));
+        }
+
+        try {
+            lastResult = EnchantmentCalculator.calculate(lastItem, combinations, optimizationMode);
+            currentStepIndex = 0;
+            rightPanelVisible = true;
+
+            if (stepPrevButton != null) {
+                this.remove(stepPrevButton);
+                stepPrevButton = null;
+            }
+            if (stepNextButton != null) {
+                this.remove(stepNextButton);
+                stepNextButton = null;
+            }
+
+            enchantmentCalculator$setupStepNavigation();
+            enchantmentCalculator$setupPinButton();
+        } catch (Exception e) {
+            EnchantmentCalculatorMod.LOGGER.error(e.toString());
+        }
+    }
+
+    @Unique
+    private void enchantmentCalculator$resetToDefault() {
         selectedEnchantments.clear();
-        enchantmentCalculator$clearResults();
-        rightPanelVisible = false;
+        optimizationMode = OptimizationMode.LEVELS;
+
+        if (lastResult != null) {
+            enchantmentCalculator$clearResults();
+            rightPanelVisible = false;
+        }
+
+        if (stepPrevButton != null) {
+            this.remove(stepPrevButton);
+            stepPrevButton = null;
+        }
+        if (stepNextButton != null) {
+            this.remove(stepNextButton);
+            stepNextButton = null;
+        }
+        if (pinButton != null) {
+            this.remove(pinButton);
+            pinButton = null;
+        }
+
+        if (isPinned) {
+            isPinned = false;
+            pinnedResult = null;
+            pinnedEnchantments.clear();
+            pinnedItem = ItemStack.EMPTY;
+        }
+
+        enchantmentScrollOffset = 0;
+        currentStepIndex = 0;
+
+        enchantmentCalculator$updateEnchantmentButtons();
+        enchantmentCalculator$updateCalculateButton();
+        enchantmentCalculator$updateResetButton();
+
+        leftPanelVisible = true;
+    }
+
+    @Unique
+    private void enchantmentCalculator$togglePin() {
+        if (isPinned) {
+            isPinned = false;
+            selectedEnchantments.clear();
+            selectedEnchantments.putAll(pinnedEnchantments);
+            optimizationMode = pinnedOptimizationMode;
+            lastItem = pinnedItem.copy();
+
+            leftPanelVisible = true;
+            rightPanelVisible = false;
+
+            enchantmentCalculator$clearInterface();
+            enchantmentCalculator$updatePanelVisibility();
+            if (leftPanelVisible) {
+                enchantmentCalculator$setupLeftPanel();
+            }
+            enchantmentCalculator$setupPinButton();
+
+            pinnedResult = null;
+            pinnedEnchantments.clear();
+            pinnedItem = ItemStack.EMPTY;
+        } else {
+            if (lastResult != null) {
+                isPinned = true;
+
+                pinnedResult = lastResult;
+                pinnedEnchantments.clear();
+                pinnedEnchantments.putAll(selectedEnchantments);
+                pinnedOptimizationMode = optimizationMode;
+                pinnedItem = lastItem.copy();
+
+                leftPanelVisible = false;
+                rightPanelVisible = true;
+
+                enchantmentCalculator$clearLeftPanelInterface();
+                enchantmentCalculator$setupPinButton();
+            }
+        }
+
+        this.remove(pinButton);
+        enchantmentCalculator$setupPinButton();
     }
 
     @Unique
     private void enchantmentCalculator$onEnchantmentChanged(Enchantment enchantment, int level) {
+        if (isPinned) return;
+
         if (level > 0) {
             selectedEnchantments.put(enchantment, level);
-
-            // Отключаем несовместимые зачарования
             EnchantmentInfo info = EnchantmentData.getEnchantmentInfo(enchantment);
             if (info != null) {
                 for (Enchantment incompatible : info.incompatibleEnchantments()) {
@@ -284,19 +571,31 @@ public abstract class AnvilScreenMixin extends ForgingScreen<AnvilScreenHandler>
         }
 
         enchantmentCalculator$updateCalculateButton();
-        // Скрываем правую панель при изменении зачарований
+        enchantmentCalculator$updateResetButton();
+
         rightPanelVisible = false;
+        if (stepPrevButton != null) {
+            this.remove(stepPrevButton);
+            stepPrevButton = null;
+        }
+        if (stepNextButton != null) {
+            this.remove(stepNextButton);
+            stepNextButton = null;
+        }
         enchantmentCalculator$clearResults();
+
+        if (pinButton != null) {
+            this.remove(pinButton);
+            pinButton = null;
+        }
     }
 
     @Unique
     private void enchantmentCalculator$updateEnchantmentCompatibility() {
-        // Сначала включаем все кнопки
         for (EnchantmentButton button : enchantmentButtons) {
             button.setEnabled(true);
         }
 
-        // Затем отключаем несовместимые с выбранными
         for (Enchantment selected : selectedEnchantments.keySet()) {
             EnchantmentInfo info = EnchantmentData.getEnchantmentInfo(selected);
             if (info != null) {
@@ -312,344 +611,46 @@ public abstract class AnvilScreenMixin extends ForgingScreen<AnvilScreenHandler>
     }
 
     @Unique
-    private void enchantmentCalculator$updateCalculateButton() {
-        if (calculateButton != null) {
-            calculateButton.active = !selectedEnchantments.isEmpty();
-        }
-    }
-
-    @Unique
-    private void enchantmentCalculator$calculate() {
-        if (selectedEnchantments.isEmpty()) return;
-
-        List<EnchantmentCombination> combinations = new ArrayList<>();
-        for (Map.Entry<Enchantment, Integer> entry : selectedEnchantments.entrySet()) {
-            combinations.add(new EnchantmentCombination(entry.getKey(), entry.getValue()));
-        }
-
-        try {
-            lastResult = EnchantmentCalculator.calculate(lastItem, combinations, optimizationMode);
-            enchantmentCalculator$updateResultLines();
-            rightPanelVisible = true;
-            enchantmentCalculator$setupResultScrollButtons();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    @Unique
-    private void enchantmentCalculator$setupResultScrollButtons() {
-        int rightPanelX = this.x + this.backgroundWidth + 8;
-        int rightPanelY = this.y;
-
-        // Кнопки прокрутки результатов
-        resultScrollUpButton = ButtonWidget.builder(
-                        Text.literal("↑"),
-                        button -> {
-                            resultScrollOffset = Math.max(0, resultScrollOffset - 3);
-                        }
-                )
-                .dimensions(rightPanelX + 175, rightPanelY + 30, 18, 15)
-                .build();
-        this.addDrawableChild(resultScrollUpButton);
-
-        resultScrollDownButton = ButtonWidget.builder(
-                        Text.literal("↓"),
-                        button -> {
-                            int maxScroll = Math.max(0, resultLines.size() - 8);
-                            resultScrollOffset = Math.min(maxScroll, resultScrollOffset + 3);
-                        }
-                )
-                .dimensions(rightPanelX + 175, rightPanelY + 47, 18, 15)
-                .build();
-        this.addDrawableChild(resultScrollDownButton);
-    }
-
-    @Unique
-    private void enchantmentCalculator$updateResultLines() {
-        resultLines.clear();
-        resultScrollOffset = 0;
-
-        if (lastResult == null) return;
-
-        // Заголовок
-        resultLines.add(Text.translatable("gui.enchantmentcalculator.result.found")
-                .formatted(Formatting.BOLD, Formatting.GREEN));
-
-        resultLines.add(Text.empty());
-
-        // Общая стоимость
-        resultLines.add(Text.translatable("gui.enchantmentcalculator.result.total_cost",
-                        lastResult.getTotalLevels(), lastResult.getTotalExperience())
-                .formatted(Formatting.BOLD, Formatting.YELLOW));
-
-        resultLines.add(Text.empty());
-
-        // Шаги
-        resultLines.add(Text.translatable("gui.enchantmentcalculator.result.steps")
-                .formatted(Formatting.BOLD, Formatting.WHITE));
-
-        for (CalculationResult.Step step : lastResult.getSteps()) {
-            // Основное описание
-            String description = step.getDescription();
-            List<String> lines = wrapTextByWords(description, 28);
-            for (String line : lines) {
-                resultLines.add(Text.literal(line).formatted(Formatting.WHITE));
-            }
-
-            // Стоимость
-            resultLines.add(Text.translatable("gui.enchantmentcalculator.result.cost",
-                            step.getLevels(), step.getExperience())
-                    .formatted(Formatting.GRAY));
-
-            // Предыдущий штраф работы
-            if (step.getPriorWorkPenalty() > 0) {
-                resultLines.add(Text.translatable("gui.enchantmentcalculator.result.prior_work",
-                                step.getPriorWorkPenalty())
-                        .formatted(Formatting.GRAY));
-            }
-
-            resultLines.add(Text.empty());
-        }
-
-        // Примечание
-        String noteText = Text.translatable("gui.enchantmentcalculator.result.note").getString();
-        List<String> noteLines = wrapTextByWords(noteText, 28);
-        for (String line : noteLines) {
-            resultLines.add(Text.literal(line).formatted(Formatting.ITALIC, Formatting.GRAY));
-        }
-    }
-
-
-    @Unique
-    private List<String> wrapTextByWords(String text, int maxLength) {
-        List<String> lines = new ArrayList<>();
-        String[] words = text.split(" ");
-        StringBuilder currentLine = new StringBuilder();
-
-        for (String word : words) {
-            if (currentLine.length() + word.length() + 1 <= maxLength) {
-                if (currentLine.length() > 0) {
-                    currentLine.append(" ");
-                }
-                currentLine.append(word);
-            } else {
-                if (currentLine.length() > 0) {
-                    lines.add(currentLine.toString());
-                    currentLine = new StringBuilder(word);
-                } else {
-                    lines.add(word); // Слово слишком длинное, но добавляем как есть
-                }
-            }
-        }
-
-        if (currentLine.length() > 0) {
-            lines.add(currentLine.toString());
-        }
-
-        return lines;
-    }
-
-
-
-
-    @Unique
     private void enchantmentCalculator$clearResults() {
         lastResult = null;
-        resultLines.clear();
-        resultScrollOffset = 0;
+        currentStepIndex = 0;
     }
 
     @Unique
     private void enchantmentCalculator$updatePanelVisibility() {
         ItemStack stack = this.handler.getSlot(0).getStack();
-        leftPanelVisible = !stack.isEmpty() && EnchantmentData.isEnchantable(stack);
+        leftPanelVisible = !stack.isEmpty() && EnchantmentData.isEnchantable(stack) && !isPinned;
     }
 
     @Unique
-    private void enchantmentCalculator$renderLeftPanel(DrawContext context) {
-        int leftPanelX = this.x - 185;
-        int leftPanelY = this.y;
-        int panelWidth = 180;
-        int panelHeight = this.backgroundHeight;
-
-        // Рисуем фон левой панели
-        enchantmentCalculator$drawMinecraftPanel(context, leftPanelX, leftPanelY, panelWidth, panelHeight);
-
-        // Заголовок с тенью
-        context.drawTextWithShadow(this.textRenderer,
-                Text.literal("Enchantment Calculator"),
-                leftPanelX + 8, leftPanelY + 10, TEXT_COLOR);
-
-        // Название предмета
-        ItemStack stack = this.handler.getSlot(0).getStack();
-        if (!stack.isEmpty()) {
-            Text itemName = stack.getName();
-            String displayName = itemName.getString();
-            if (displayName.length() > 22) {
-                displayName = displayName.substring(0, 19) + "...";
-            }
-            context.drawTextWithShadow(this.textRenderer,
-                    Text.literal(displayName), leftPanelX + 8, leftPanelY + 25, TEXT_COLOR);
-        }
-
-        // Индикатор прокрутки
-        if (availableEnchantments.size() > 6) {
-            context.drawTextWithShadow(this.textRenderer,
-                    Text.literal("(" + (enchantmentScrollOffset + 1) + "-" +
-                            Math.min(enchantmentScrollOffset + 6, availableEnchantments.size()) +
-                            "/" + availableEnchantments.size() + ")"),
-                    leftPanelX + 8, leftPanelY + panelHeight - 15, 0xFF666666);
-        }
-    }
-
-    @Unique
-    private void enchantmentCalculator$renderRightPanel(DrawContext context) {
-        int rightPanelX = this.x + this.backgroundWidth + 8;
-        int rightPanelY = this.y;
-        int panelWidth = 195;
-        int panelHeight = this.backgroundHeight;
-
-        // Рисуем фон правой панели
-        enchantmentCalculator$drawMinecraftPanel(context, rightPanelX, rightPanelY, panelWidth, panelHeight);
-
-        // Заголовок
-        context.drawTextWithShadow(this.textRenderer,
-                Text.literal("Calculation Results"),
-                rightPanelX + 8, rightPanelY + 10, TEXT_COLOR);
-
-        enchantmentCalculator$renderResultsArea(context,
-                rightPanelX + 8, rightPanelY + 30,
-                panelWidth - 20, panelHeight - 40);
-
-    }
-
-    @Unique
-    private void enchantmentCalculator$drawMinecraftPanel(DrawContext context, int x, int y, int width, int height) {
-        // Фон панели
-        context.fill(x, y, x + width, y + height, PANEL_BG);
-
-        // Верхняя и левая светлые границы
-        context.fill(x, y, x + width - 1, y + 1, PANEL_BORDER_LIGHT);
-        context.fill(x, y, x + 1, y + height - 1, PANEL_BORDER_LIGHT);
-
-        // Нижняя и правая темные границы
-        context.fill(x + 1, y + height - 1, x + width, y + height, PANEL_BORDER_DARK);
-        context.fill(x + width - 1, y + 1, x + width, y + height - 1, PANEL_BORDER_DARK);
-
-        // Внутренние границы для 3D эффекта
-        context.fill(x + 1, y + 1, x + width - 2, y + 2, PANEL_BORDER_LIGHT);
-        context.fill(x + 1, y + 1, x + 2, y + height - 2, PANEL_BORDER_LIGHT);
-        context.fill(x + 2, y + height - 2, x + width - 1, y + height - 1, PANEL_BORDER_DARK);
-        context.fill(x + width - 2, y + 2, x + width - 1, y + height - 2, PANEL_BORDER_DARK);
-    }
-
-    @Unique
-    private void enchantmentCalculator$renderResultsArea(DrawContext context, int x, int y, int width, int height) {
-        // Фон области результатов (вдавленная панель)
-        context.fill(x, y, x + width, y + height, INSET_BG);
-
-        // Рамки
-        context.fill(x, y, x + width - 1, y + 1, PANEL_BORDER_DARK);
-        context.fill(x, y, x + 1, y + height - 1, PANEL_BORDER_DARK);
-        context.fill(x + 1, y + height - 1, x + width, y + height, PANEL_BORDER_LIGHT);
-        context.fill(x + width - 1, y + 1, x + width, y + height - 1, PANEL_BORDER_LIGHT);
-
-        if (resultLines.isEmpty()) {
-            Text hint = Text.literal("Нажмите Calculate").formatted(Formatting.ITALIC);
-            int hintX = x + (width - textRenderer.getWidth(hint)) / 2;
-            int hintY = y + height / 2 - 4;
-            context.drawTextWithShadow(textRenderer, hint, hintX, hintY, 0xFF666666);
-            return;
-        }
-
-        // Отображаем результаты с прокруткой
-        context.enableScissor(x + 3, y + 3, x + width - 3, y + height - 3);
-
-        int currentY = y + 8 - (resultScrollOffset * 11);
-        int visibleLines = 0;
-        int maxVisibleLines = (height - 10) / 11; // 11 пикселей на строку
-
-        for (Text line : resultLines) {
-            if (currentY > y - 15 && currentY < y + height + 15 && visibleLines < maxVisibleLines) {
-                String lineText = line.getString();
-
-                // Автоматический перенос длинных строк
-                if (this.textRenderer.getWidth(line) > width - 10) {
-                    List<String> wrappedLines = wrapText(lineText, width - 10);
-                    for (String wrappedLine : wrappedLines) {
-                        if (currentY > y - 15 && currentY < y + height + 15) {
-                            Text wrappedText = Text.literal(wrappedLine).setStyle(line.getStyle());
-                            context.drawTextWithShadow(textRenderer, wrappedText, x + 5, currentY, 0xFFFFFFFF);
-                        }
-                        currentY += 11;
-                        visibleLines++;
-                    }
-                } else {
-                    context.drawTextWithShadow(textRenderer, line, x + 5, currentY, 0xFFFFFFFF);
-                    currentY += 11;
-                    visibleLines++;
-                }
-            } else if (this.textRenderer.getWidth(line) > width - 10) {
-                // Пропускаем строки, но учитываем перенос для правильной прокрутки
-                int wrappedCount = (int) Math.ceil((double) this.textRenderer.getWidth(line) / (width - 10));
-                currentY += 11 * wrappedCount;
-            } else {
-                currentY += 11;
-            }
-        }
-
-        context.disableScissor();
-
-        // Обновляем кнопки прокрутки
-        if (resultScrollUpButton != null) {
-            resultScrollUpButton.active = resultScrollOffset > 0;
-        }
-        if (resultScrollDownButton != null) {
-            int totalLines = calculateTotalDisplayLines();
-            resultScrollDownButton.active = resultScrollOffset < Math.max(0, totalLines - maxVisibleLines);
-        }
-    }
-
-    @Unique
-    private List<String> wrapText(String text, int maxWidth) {
+    private List<String> enchantmentCalculator$wrapText(String text) {
         List<String> lines = new ArrayList<>();
         String[] words = text.split(" ");
         StringBuilder currentLine = new StringBuilder();
 
         for (String word : words) {
-            String testLine = currentLine.length() == 0 ? word : currentLine + " " + word;
-            if (textRenderer.getWidth(Text.literal(testLine)) <= maxWidth) {
+            String testLine = currentLine.isEmpty() ? word : currentLine + " " + word;
+            if (textRenderer.getWidth(Text.literal(testLine)) <= 160) {
                 currentLine = new StringBuilder(testLine);
             } else {
-                if (currentLine.length() > 0) {
+                if (!currentLine.isEmpty()) {
                     lines.add(currentLine.toString());
                     currentLine = new StringBuilder(word);
                 } else {
-                    // Слово слишком длинное, принудительно обрезаем
                     lines.add(word.substring(0, Math.min(word.length(), 25)) + "...");
                 }
             }
         }
 
-        if (currentLine.length() > 0) {
+        if (!currentLine.isEmpty()) {
             lines.add(currentLine.toString());
         }
 
         return lines;
     }
 
-    @Unique
-    private int calculateTotalDisplayLines() {
-        int total = 0;
-        for (Text line : resultLines) {
-            if (this.textRenderer.getWidth(line) > 160) { // примерная ширина - 10
-                total += (int) Math.ceil((double) this.textRenderer.getWidth(line) / 160);
-            } else {
-                total += 1;
-            }
-        }
-        return total;
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        return super.mouseClicked(mouseX, mouseY, button);
     }
-
 }

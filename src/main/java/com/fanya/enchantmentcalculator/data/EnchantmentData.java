@@ -1,13 +1,12 @@
 package com.fanya.enchantmentcalculator.data;
 
-import com.fanya.enchantmentcalculator.EnchantmentCalculatorMod;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.client.MinecraftClient;
 
@@ -30,13 +29,13 @@ public class EnchantmentData {
     }
 
     private static void loadEnchantmentData(MinecraftClient client) {
+        assert client.world != null;
         RegistryWrapper<Enchantment> enchantmentRegistry = client.world.getRegistryManager().getWrapperOrThrow(RegistryKeys.ENCHANTMENT);
 
-        EnchantmentCalculatorMod.LOGGER.info("=== ЗАГРУЗКА ДАННЫХ ЗАЧАРОВАНИЙ ===");
 
         for (RegistryEntry.Reference<Enchantment> entry : enchantmentRegistry.streamEntries().toList()) {
             Enchantment enchantment = entry.value();
-            Identifier id = entry.getKey().map(key -> key.getValue()).orElse(null);
+            entry.getKey().map(RegistryKey::getValue);
             int weight = getEnchantmentWeight(enchantment, entry);
 
             EnchantmentInfo info = new EnchantmentInfo(
@@ -48,7 +47,6 @@ public class EnchantmentData {
             ENCHANTMENT_INFO.put(enchantment, info);
         }
 
-        EnchantmentCalculatorMod.LOGGER.info("=== ЗАГРУЖЕНО {} ЗАЧАРОВАНИЙ ===", ENCHANTMENT_INFO.size());
     }
 
 
@@ -69,7 +67,7 @@ public class EnchantmentData {
             return enchantment.getWeight(); // Если такой метод существует
         } catch (Exception e) {
             // Fallback на ручные значения
-            Identifier id = entry.getKey().map(key -> key.getValue()).orElse(null);
+            Identifier id = entry.getKey().map(RegistryKey::getValue).orElse(null);
             if (id == null) return 1;
 
             String name = id.getPath();
@@ -101,7 +99,7 @@ public class EnchantmentData {
         String currentName = null;
         for (RegistryEntry.Reference<Enchantment> entry : enchantmentRegistry.streamEntries().toList()) {
             if (entry.value() == enchantment) {
-                Identifier currentId = entry.getKey().map(key -> key.getValue()).orElse(null);
+                Identifier currentId = entry.getKey().map(RegistryKey::getValue).orElse(null);
                 if (currentId != null) {
                     currentName = currentId.getPath();
                     break;
@@ -116,7 +114,7 @@ public class EnchantmentData {
             Enchantment other = entry.value();
             if (other == enchantment) continue;
 
-            Identifier otherId = entry.getKey().map(key -> key.getValue()).orElse(null);
+            Identifier otherId = entry.getKey().map(RegistryKey::getValue).orElse(null);
             if (otherId == null) continue;
 
             String otherName = otherId.getPath();
@@ -192,10 +190,6 @@ public class EnchantmentData {
         return ENCHANTMENT_INFO.get(enchantment);
     }
 
-    public static ItemInfo getItemInfo(Item item) {
-        return ITEM_INFO.get(item);
-    }
-
     public static List<Enchantment> getApplicableEnchantments(ItemStack stack) {
         if (stack.isEmpty()) return Collections.emptyList();
 
@@ -207,14 +201,10 @@ public class EnchantmentData {
         if (!initialized) {
             initialize();
         }
-        boolean result = !getApplicableEnchantments(stack).isEmpty();
 
-        EnchantmentCalculatorMod.LOGGER.info("Checking enchantability for: {} - Result: {} - Initialized: {}", stack.getItem().getName().getString(), result, initialized);
-
-        return result;
+        return !getApplicableEnchantments(stack).isEmpty();
     }
 
-    // Метод для переинициализации при смене мира
     public static void reinitialize() {
         initialized = false;
         ENCHANTMENT_INFO.clear();
