@@ -30,7 +30,7 @@ public class EnchantmentData {
 
     private static void loadEnchantmentData(MinecraftClient client) {
         assert client.world != null;
-        RegistryWrapper<Enchantment> enchantmentRegistry = client.world.getRegistryManager().getWrapperOrThrow(RegistryKeys.ENCHANTMENT);
+        RegistryWrapper<Enchantment> enchantmentRegistry = client.world.getRegistryManager().getOrThrow(RegistryKeys.ENCHANTMENT);
 
 
         for (RegistryEntry.Reference<Enchantment> entry : enchantmentRegistry.streamEntries().toList()) {
@@ -60,19 +60,14 @@ public class EnchantmentData {
     }
 
     private static int getEnchantmentWeight(Enchantment enchantment, RegistryEntry.Reference<Enchantment> entry) {
-        // Пытаемся получить реальный вес из игры
         try {
-            // В Minecraft 1.21 может быть доступен метод getWeight() или аналогичный
-            // Проверьте документацию API для вашей версии
-            return enchantment.getWeight(); // Если такой метод существует
+            return enchantment.getWeight();
         } catch (Exception e) {
-            // Fallback на ручные значения
             Identifier id = entry.getKey().map(RegistryKey::getValue).orElse(null);
             if (id == null) return 1;
 
             String name = id.getPath();
             return switch (name) {
-                // Используем значения из приложенного кода сайта
                 case "protection", "sharpness", "efficiency", "power", "unbreaking",
                      "feather_falling", "fire_protection", "knockback", "loyalty",
                      "piercing", "projectile_protection", "quick_charge", "smite",
@@ -95,7 +90,6 @@ public class EnchantmentData {
     private static List<Enchantment> getIncompatibleEnchantments(Enchantment enchantment, RegistryWrapper<Enchantment> enchantmentRegistry) {
         List<Enchantment> incompatible = new ArrayList<>();
 
-        // Получаем ID текущего зачарования
         String currentName = null;
         for (RegistryEntry.Reference<Enchantment> entry : enchantmentRegistry.streamEntries().toList()) {
             if (entry.value() == enchantment) {
@@ -109,7 +103,6 @@ public class EnchantmentData {
 
         if (currentName == null) return incompatible;
 
-        // Проверяем все зачарования на совместимость
         for (RegistryEntry.Reference<Enchantment> entry : enchantmentRegistry.streamEntries().toList()) {
             Enchantment other = entry.value();
             if (other == enchantment) continue;
@@ -119,7 +112,6 @@ public class EnchantmentData {
 
             String otherName = otherId.getPath();
 
-            // Проверяем несовместимость на основе предопределенных правил
             if (areIncompatible(currentName, otherName)) {
                 incompatible.add(other);
             }
@@ -173,7 +165,7 @@ public class EnchantmentData {
         ItemStack stack = new ItemStack(item);
 
         if (client.world != null) {
-            RegistryWrapper<Enchantment> enchantmentRegistry = client.world.getRegistryManager().getWrapperOrThrow(RegistryKeys.ENCHANTMENT);
+            RegistryWrapper<Enchantment> enchantmentRegistry = client.world.getRegistryManager().getOrThrow(RegistryKeys.ENCHANTMENT);
 
             for (RegistryEntry<Enchantment> entry : enchantmentRegistry.streamEntries().toList()) {
                 Enchantment enchantment = entry.value();

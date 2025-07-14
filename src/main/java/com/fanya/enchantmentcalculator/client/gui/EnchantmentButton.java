@@ -3,6 +3,7 @@ package com.fanya.enchantmentcalculator.client.gui;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.enchantment.Enchantment;
+import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.text.Text;
@@ -66,17 +67,14 @@ public class EnchantmentButton extends ButtonWidget {
         }
     }
 
-
     private static Text getEnchantmentDisplayName(Enchantment enchantment) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.world != null) {
             try {
-                RegistryEntry<Enchantment> entry = client.world.getRegistryManager()
-                        .getWrapperOrThrow(RegistryKeys.ENCHANTMENT)
-                        .streamEntries()
-                        .filter(e -> e.value() == enchantment)
-                        .findFirst()
-                        .orElse(null);
+                Registry<Enchantment> registry = client.world.getRegistryManager()
+                        .getOrThrow(RegistryKeys.ENCHANTMENT);
+
+                RegistryEntry<Enchantment> entry = registry.getEntry(enchantment);
 
                 if (entry != null) {
                     return Enchantment.getName(entry, 1);

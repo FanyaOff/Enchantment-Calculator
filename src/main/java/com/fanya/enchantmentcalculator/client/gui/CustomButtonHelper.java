@@ -4,6 +4,7 @@ import com.fanya.enchantmentcalculator.client.mixin.ButtonWidgetAccessor;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.render.RenderLayer;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
@@ -41,7 +42,9 @@ public class CustomButtonHelper {
             @Override
             public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
                 Identifier texture = !this.active ? type.disabled : (this.isHovered() ? type.highlighted : type.normal);
-                context.drawTexture(texture, this.getX(), this.getY(), 0, 0, this.width, this.height, this.width, this.height);
+
+                context.drawTexture(RenderLayer::getGuiTextured, texture, this.getX(), this.getY(), 0, 0, this.width, this.height, this.width, this.height
+                );
             }
         };
 
@@ -51,6 +54,6 @@ public class CustomButtonHelper {
     }
 
     public static void drawPanelTexture(DrawContext context, int x, int y, int width, int height) {
-        context.drawTexture(PANEL_TEXTURE, x, y, 0, 0, width, height, 256, 256);
+        context.drawTexture(RenderLayer::getGuiTextured, PANEL_TEXTURE, x, y, 0, 0, width, height, 256, 256);
     }
 }

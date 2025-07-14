@@ -3,10 +3,12 @@ package com.fanya.enchantmentcalculator.calculator;
 import com.fanya.enchantmentcalculator.EnchantmentCalculatorMod;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.item.ItemStack;
+import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 
 import java.util.*;
 
@@ -320,16 +322,11 @@ public class EnchantmentCalculator {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.world != null) {
             try {
-                RegistryEntry<Enchantment> entry = client.world.getRegistryManager()
-                        .getWrapperOrThrow(RegistryKeys.ENCHANTMENT)
-                        .streamEntries()
-                        .filter(e -> e.value() == enchantment)
-                        .findFirst()
-                        .orElse(null);
+                Registry<Enchantment> registry = client.world.getRegistryManager()
+                        .getOrThrow(RegistryKeys.ENCHANTMENT);
 
-                if (entry != null) {
-                    return entry.getKey().map(key -> key.getValue().getPath()).orElse("unknown");
-                }
+                Identifier id = registry.getId(enchantment);
+                return id != null ? id.getPath() : "unknown";
             } catch (Exception ignored) {}
         }
         return "unknown";
