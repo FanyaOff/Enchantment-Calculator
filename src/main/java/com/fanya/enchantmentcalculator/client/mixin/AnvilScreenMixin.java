@@ -262,28 +262,61 @@ public abstract class AnvilScreenMixin extends ForgingScreen<AnvilScreenHandler>
         CustomButtonHelper.drawPanelTexture(context, rightPanelX, rightPanelY, 200, 166);
 
         if (lastResult != null) {
+            context.fill(rightPanelX + 20, rightPanelY + 5, rightPanelX + 180, rightPanelY + 18, 0x00000000);
+
             Text costText = Text.translatable("enchantmentcalculator.ui.levels", lastResult.getTotalLevels())
                     .formatted(Formatting.BOLD, Formatting.YELLOW);
             context.drawCenteredTextWithShadow(this.textRenderer, costText,
-                    rightPanelX + 100, rightPanelY + 8, 0xFFFFFF);
+                    rightPanelX + 100, rightPanelY + 8, 0xFFFFFFFF);
 
             if (!lastResult.getSteps().isEmpty() && currentStepIndex >= 0 && currentStepIndex < lastResult.getSteps().size()) {
                 CalculationResult.Step currentStep = lastResult.getSteps().get(currentStepIndex);
+
+                context.fill(rightPanelX + 20, rightPanelY + 20, rightPanelX + 180, rightPanelY + 33, 0x00000000);
+
                 Text stepCostText = Text.translatable("enchantmentcalculator.ui.cost", currentStep.getLevels());
                 context.drawCenteredTextWithShadow(this.textRenderer, stepCostText,
-                        rightPanelX + 100, rightPanelY + 20, 0xFFAAAA);
+                        rightPanelX + 100, rightPanelY + 23, 0xFFFFFFFF);
             }
         }
 
-        enchantmentCalculator$renderStepsArea(context, rightPanelX + 10, rightPanelY + 35
-        );
+        enchantmentCalculator$renderStepsAreaWithBackground(context, rightPanelX + 10, rightPanelY + 35);
 
-        enchantmentCalculator$renderStepNavigation(context, rightPanelX,
-                rightPanelY + 166 - 20);
+        enchantmentCalculator$renderStepNavigationWithBackground(context, rightPanelX, rightPanelY + 166 - 20);
     }
 
     @Unique
-    private void enchantmentCalculator$renderStepNavigation(DrawContext context, int x, int y) {
+    private void enchantmentCalculator$renderStepsAreaWithBackground(DrawContext context, int x, int y) {
+        if (lastResult == null || lastResult.getSteps().isEmpty()) return;
+
+        if (currentStepIndex < 0 || currentStepIndex >= lastResult.getSteps().size()) {
+            currentStepIndex = 0;
+        }
+
+        context.fill(x, y, x + 180, y + 96, 0xFF8B8B8B);
+        context.fill(x, y, x + 180 - 1, y + 1, 0xFF555555);
+        context.fill(x, y, x + 1, y + 96 - 1, 0xFF555555);
+        context.fill(x + 1, y + 96 - 1, x + 180, y + 96, 0xFFFFFFFF);
+        context.fill(x + 180 - 1, y + 1, x + 180, y + 96 - 1, 0xFFFFFFFF);
+
+        CalculationResult.Step currentStep = lastResult.getSteps().get(currentStepIndex);
+        String description = currentStep.getDescription();
+        List<String> wrappedLines = enchantmentCalculator$wrapText(description);
+
+        int textY = y + 10;
+
+        for (String line : wrappedLines) {
+            int lineWidth = this.textRenderer.getWidth(Text.literal(line));
+            context.fill(x + 8, textY - 2, x + 12 + lineWidth, textY + 10, 0x00000000);
+
+            context.drawTextWithShadow(this.textRenderer, Text.literal(line),
+                    x + 10, textY, 0xFFFFFFFF);
+            textY += 12;
+        }
+    }
+
+    @Unique
+    private void enchantmentCalculator$renderStepNavigationWithBackground(DrawContext context, int x, int y) {
         if (lastResult == null || lastResult.getSteps().isEmpty()) return;
 
         int totalSteps = lastResult.getSteps().size();
@@ -293,8 +326,12 @@ public abstract class AnvilScreenMixin extends ForgingScreen<AnvilScreenHandler>
         int rightArrowStart = x + 200 - 22;
         int centerBetweenArrows = (leftArrowEnd + rightArrowStart) / 2;
 
+        int textWidth = this.textRenderer.getWidth(stepIndicator);
+        context.fill(centerBetweenArrows - textWidth/2 - 5, y - 8,
+                centerBetweenArrows + textWidth/2 + 5, y + 5, 0x00000000);
+
         context.drawCenteredTextWithShadow(this.textRenderer, stepIndicator,
-                centerBetweenArrows, y - 5, 0xFFFFFF);
+                centerBetweenArrows, y - 5, 0xFFFFFFFF);
 
         if (stepPrevButton != null) {
             stepPrevButton.active = currentStepIndex > 0;
@@ -303,6 +340,7 @@ public abstract class AnvilScreenMixin extends ForgingScreen<AnvilScreenHandler>
             stepNextButton.active = currentStepIndex < totalSteps - 1;
         }
     }
+
 
     @Unique
     private void enchantmentCalculator$renderStepsArea(DrawContext context, int x, int y) {
