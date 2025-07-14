@@ -2,6 +2,8 @@
 
 Enchantment Calculator is a client-side mod that helps you find the most cost-effective way to combine enchantments on your items.
 
+This mod is based on the functionality provided by [this website](https://iamcal.github.io/enchant-order/)
+
 ## Features
 
 - **Smart Cost Optimization**: Calculates the most efficient enchanting sequence to minimize level costs
