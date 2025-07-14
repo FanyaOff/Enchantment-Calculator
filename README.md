@@ -4,14 +4,8 @@ Enchantment Calculator is a client-side mod that helps you find the most cost-ef
 
 This mod is based on the functionality provided by [this website](https://iamcal.github.io/enchant-order/)
 
-## Features
-
-- **Smart Cost Optimization**: Calculates the most efficient enchanting sequence to minimize level costs
-- **Real-time Interface**: Integrated directly into the anvil screen for seamless use
-- **Multiple Optimization Modes**: Choose between optimizing for levels or experience points
-- **Visual Step-by-Step Guide**: See exactly which items to combine and in what order
-- **Enchantment Compatibility**: Automatically handles incompatible enchantments
-- **Result Pinning**: Pin calculation results to reference them later
+## Known bugs
+- The interface overflows off-screen when using UI scale 4 (idk how to fix this :P)
 
 ## Usage
 
