@@ -4,6 +4,11 @@ Enchantment Calculator is a client-side mod that helps you find the most cost-ef
 
 This mod is based on the functionality provided by [this website](https://iamcal.github.io/enchant-order/)
 
+This mod supports customization via a custom resource pack. UI elements are located at:
+`assets/enchantmentcalculator/textures/gui`
+
+You can view the original textures in the source code on [GitHub](https://github.com/FanyaOff/Enchantment-Calculator/tree/main/src/main/resources/assets/enchantmentcalculator/textures/gui):
+
 ## Known bugs
 - The interface overflows off-screen when using UI scale 4 (idk how to fix this :P)
 
