@@ -4,8 +4,8 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/Enchantment-Calculator.main.iml" filepath="$PROJECT_DIR$/.idea/modules/Enchantment-Calculator.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/Enchantment-Calculator.test.iml" filepath="$PROJECT_DIR$/.idea/modules/Enchantment-Calculator.test.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Enchantment_Calculator.main.iml" filepath="$PROJECT_DIR$/.idea/modules/Enchantment_Calculator.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Enchantment_Calculator.test.iml" filepath="$PROJECT_DIR$/.idea/modules/Enchantment_Calculator.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.fanya.Enchantment-Calculator.main.iml" filepath="$PROJECT_DIR$/.idea/modules/com.fanya.Enchantment-Calculator.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.fanya.Enchantment-Calculator.test.iml" filepath="$PROJECT_DIR$/.idea/modules/com.fanya.Enchantment-Calculator.test.iml" />
     </modules>
   </component>
 </project>

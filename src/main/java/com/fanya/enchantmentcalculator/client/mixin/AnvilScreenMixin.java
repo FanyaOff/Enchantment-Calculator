@@ -9,9 +9,11 @@ import com.fanya.enchantmentcalculator.client.gui.CustomButtonHelper;
 import com.fanya.enchantmentcalculator.client.gui.EnchantmentButton;
 import com.fanya.enchantmentcalculator.data.EnchantmentData;
 import com.fanya.enchantmentcalculator.data.EnchantmentInfo;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.AnvilScreen;
 import net.minecraft.client.gui.screen.ingame.ForgingScreen;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.player.PlayerInventory;
@@ -688,7 +690,7 @@ public abstract class AnvilScreenMixin extends ForgingScreen<AnvilScreenHandler>
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        return super.mouseClicked(mouseX, mouseY, button);
+    public boolean mouseClicked(Click click, boolean doubled) {
+        return super.mouseClicked(click, doubled);
     }
 }
