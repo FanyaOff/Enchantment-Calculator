@@ -2,6 +2,7 @@ package com.fanya.enchantmentcalculator.client.gui;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.input.AbstractInput;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKeys;
@@ -13,7 +14,6 @@ import net.minecraft.client.MinecraftClient;
 import java.util.function.BiConsumer;
 
 public class EnchantmentButton extends ButtonWidget {
-    // Приятные цвета
     private static final int BUTTON_NORMAL = 0xFFC6C6C6;
     private static final int BUTTON_HOVER = 0xFFE0E0E0;
     private static final int BUTTON_SELECTED = 0xFF9ACD32;
@@ -41,7 +41,7 @@ public class EnchantmentButton extends ButtonWidget {
     }
 
     @Override
-    public void onPress() {
+    public void onPress(AbstractInput input) {
         if (!enabled) return;
 
         currentLevel++;
