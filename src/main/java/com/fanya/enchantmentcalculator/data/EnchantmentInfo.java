@@ -1,11 +1,11 @@
 package com.fanya.enchantmentcalculator.data;
 
-import net.minecraft.enchantment.Enchantment;
 import java.util.List;
+import net.minecraft.world.item.enchantment.Enchantment;
 
 public record EnchantmentInfo(
         Enchantment enchantment,
         int maxLevel,
-        int weight,
         List<Enchantment> incompatibleEnchantments
-) {}
+) {
+}

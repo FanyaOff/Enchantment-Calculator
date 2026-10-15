@@ -1,14 +1,25 @@
 ## Overview
 
 Enchantment Calculator is a client-side mod that helps you find the most cost-effective way to combine enchantments on your items.
+
 This mod is based on the functionality provided by [this website](https://iamcal.github.io/enchant-order/)
 
-This mod supports customization via a custom resource pack. UI elements are located at:
+This mod supports customization via a custom resource pack. GUI elements are located at:
 `assets/enchantmentcalculator/textures/gui`
-You can view the original textures in the source code on [GitHub](https://github.com/FanyaOff/Enchantment-Calculator/tree/main/src/main/resources/assets/enchantmentcalculator/textures/gui):
 
-## Known bugs
-- The interface overflows off-screen when using UI scale 4 (idk how to fix this :P)
+You can view the original textures in the source code on [GitHub](https://github.com/FanyaOff/Enchantment-Calculator/tree/main/src/main/resources/assets/enchantmentcalculator/textures/gui)
+
+_If you have an idea to improve the interface by redrawing the elements or by changing the code, I would appreciate it._
+
+## Since 2.0 update:
+- reworked gui
+- auto-enchantment function
+
+**IMPORTANT!!!!!** Before using the auto-enchantment feature, please get approval from your server admins. Otherwise, use the Fair Play Edition
+
+## Bug Reports & Feature Requests
+
+Found a bug, errors in calculations, have a suggestion? Please report it my our [GitHub Issues](https://github.com/FanyaOff/Enchantment-Calculator/issues) page.
 
 ## Usage
 
@@ -124,7 +135,5 @@ Weight 4: mending, silk_touch, infinity, curse_of_binding
 
 This algorithm ensures you get the mathematically optimal enchanting sequence while maintaining fast performance suitable for real-time gameplay.
 
-## Bug Reports & Feature Requests
 
-Found a bug or have a suggestion? Please report it my our [GitHub Issues](https://github.com/FanyaOff/Enchantment-Calculator/issues) page.
 
