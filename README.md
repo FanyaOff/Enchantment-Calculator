@@ -37,7 +37,7 @@ Found a bug, errors in calculations, have a suggestion? Please report it my our 
 
 **Main gui**
 
-<img width="1920" height="991" alt="изображение" src="https://github.com/user-attachments/assets/9803feeb-d873-4d4c-8c22-f000a76785d8" />
+<img width="1280" height="720" alt="изображение" src="https://github.com/user-attachments/assets/9803feeb-d873-4d4c-8c22-f000a76785d8" />
 
 **Preset gui**
 
