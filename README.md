@@ -33,9 +33,16 @@ Found a bug, errors in calculations, have a suggestion? Please report it my our 
 4. **Follow the steps** shown in the right panel
 5. **Navigate** through steps using arrow buttons
 
-## Screenshot
+## Screenshots
 
-<img width="1209" height="423" alt="image" src="https://github.com/user-attachments/assets/b4ab4176-93f9-4317-98fa-0e2dda540c28" />
+**Main gui**
+
+<img width="1920" height="991" alt="изображение" src="https://github.com/user-attachments/assets/9803feeb-d873-4d4c-8c22-f000a76785d8" />
+
+**Preset gui**
+
+<img width="915" height="428" alt="изображение" src="https://github.com/user-attachments/assets/c91db6db-5d72-49ed-8dcb-1e572d244b7a" />
+
 
 # Technical Algorithm Overview
 
