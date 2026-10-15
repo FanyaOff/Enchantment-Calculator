@@ -1,0 +1,16 @@
+{
+  "enchantmentcalculator.ui.levels": "Niveaux : %s",
+  "enchantmentcalculator.ui.cost": "Coût : %s niv.",
+  "enchantmentcalculator.ui.step": "Étape %s/%s",
+  "enchantmentcalculator.ui.pin_result": "Épingler le résultat",
+  "enchantmentcalculator.ui.unpin_result": "Désépingler le résultat",
+  "enchantmentcalculator.ui.calculate": "Calculer la combinaison d’enchantements",
+  "enchantmentcalculator.ui.reset": "Réinitialiser la sélection",
+  "enchantmentcalculator.ui.scroll_up": "Faire défiler vers le haut",
+  "enchantmentcalculator.ui.scroll_down": "Faire défiler vers le bas",
+  "enchantmentcalculator.ui.next_step": "Étape suivante",
+  "enchantmentcalculator.ui.previous_step": "Étape précédente",
+  "enchantmentcalculator.combine": "Combiner %s + %s",
+  "enchantmentcalculator.book": "Livre (%s)",
+  "enchantmentcalculator.book_combined": "Livre (%s + %s)"
+}
