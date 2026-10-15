@@ -417,9 +417,12 @@ public abstract class AnvilScreenMixin extends ItemCombinerScreen<AnvilMenu> {
 
     @Unique
     private AnvilPanelRenderer enchantmentCalculator$painter() {
+        AnvilPanelRenderer.Readiness displayReadiness = readiness == null ? null
+                : new AnvilPanelRenderer.Readiness(readiness.missingBooks(),
+                        readiness.levelsNeededNow(), readiness.levelsNeededForPlan());
         return new AnvilPanelRenderer(
                 font, leftPos, topPos, availableEnchantments, scrollOffset, errorMessage,
-                result, stepIndex, automaticStatus, readiness, readinessScrollOffset,
+                result, stepIndex, automaticStatus, displayReadiness, readinessScrollOffset,
                 readinessProblem, enchantmentCalculator$pinFitsBelow());
     }
 

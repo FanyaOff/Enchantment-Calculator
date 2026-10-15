@@ -1,7 +1,6 @@
 package com.fanya.enchantmentcalculator.client.gui;
 
 import com.fanya.enchantmentcalculator.calculator.CalculationResult;
-import com.fanya.enchantmentcalculator.client.automation.InventoryReadiness;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -12,6 +11,8 @@ import java.util.List;
 
 /** отрисовка плана, проверки и выбора чар */
 public final class AnvilPanelRenderer {
+    public record Readiness(List<String> missingBooks, int levelsNeededNow, int levelsNeededForPlan) {}
+
     private final Font font;
     private final int leftPos;
     private final int topPos;
@@ -21,7 +22,7 @@ public final class AnvilPanelRenderer {
     private final CalculationResult result;
     private final int stepIndex;
     private final Component automaticStatus;
-    private final InventoryReadiness.Report readiness;
+    private final Readiness readiness;
     private final int readinessScrollOffset;
     private final String readinessProblem;
     private final boolean pinFitsBelow;
@@ -30,7 +31,7 @@ public final class AnvilPanelRenderer {
             Font font, int leftPos, int topPos,
             List<Enchantment> availableEnchantments, int scrollOffset, String errorMessage,
             CalculationResult result, int stepIndex, Component automaticStatus,
-            InventoryReadiness.Report readiness, int readinessScrollOffset,
+            Readiness readiness, int readinessScrollOffset,
             String readinessProblem, boolean pinFitsBelow
     ) {
         this.font = font;

@@ -17,7 +17,6 @@ sourceSets.main {
             "**/client/preset/**",
             "**/client/plan/**",
             "**/client/gui/AnvilPresetView.java",
-            "**/client/gui/AnvilPanelRenderer.java",
             "**/client/mixin/AnvilSyncMixin.java",
             "**/client/mixin/AnvilExperienceMixin.java"
         )

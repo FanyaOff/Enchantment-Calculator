@@ -5,6 +5,7 @@ import com.fanya.enchantmentcalculator.calculator.CalculationResult;
 import com.fanya.enchantmentcalculator.calculator.EnchantmentCalculator;
 import com.fanya.enchantmentcalculator.calculator.EnchantmentCombination;
 import com.fanya.enchantmentcalculator.calculator.OptimizationMode;
+import com.fanya.enchantmentcalculator.client.gui.AnvilPanelRenderer;
 import com.fanya.enchantmentcalculator.client.gui.AnvilTextures;
 import com.fanya.enchantmentcalculator.client.gui.CalculatorIconWidget;
 import com.fanya.enchantmentcalculator.client.gui.EnchantmentLevelSlider;
@@ -22,7 +23,10 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.AnvilMenu;
@@ -89,35 +93,46 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
     @Override
     public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
+        if (page == Page.CLOSED) {
+            context.nextStratum();
+            enchantmentCalculator$drawIcons(context);
+            return;
+        }
         context.nextStratum();
-        if (page != Page.CLOSED) {
-            if (enchantmentCalculator$isCompact()) {
-                context.pose().pushMatrix();
-                context.pose().translate(leftPos, topPos);
-                enchantmentCalculator$drawPanel(context, 0, 0, imageWidth, true);
-                context.nextStratum();
-                if (page == Page.SELECTION) {
-                    enchantmentCalculator$drawSelection(context, 0, true);
-                } else {
-                    enchantmentCalculator$drawResult(context, 0, true, mouseX, mouseY);
-                }
-                context.pose().popMatrix();
-            } else {
-                int panelX = enchantmentCalculator$panelX();
-                enchantmentCalculator$drawPanel(context, panelX, topPos, PANEL_WIDTH, false);
-                context.nextStratum();
-                if (page == Page.SELECTION) {
-                    enchantmentCalculator$drawSelection(context, panelX, false);
-                } else {
-                    enchantmentCalculator$drawResult(context, panelX, false, mouseX, mouseY);
+        AnvilPanelRenderer painter = new AnvilPanelRenderer(
+                font, leftPos, topPos, availableEnchantments, scrollOffset, errorMessage,
+                result, stepIndex, null, null, 0, null, enchantmentCalculator$pinFitsBelow());
+        if (enchantmentCalculator$isCompact()) {
+            context.pose().pushMatrix();
+            context.pose().translate(leftPos, topPos);
+            enchantmentCalculator$drawPanel(context, 0, 0, imageWidth, true);
+            context.nextStratum();
+            if (page == Page.SELECTION) painter.drawSelection(context);
+            else painter.drawResult(context, mouseX, mouseY);
+            context.pose().popMatrix();
+        } else {
+            int panelWidth = enchantmentCalculator$sidePanelWidth();
+            if (page == Page.SELECTION || enchantmentCalculator$hasTwoSides()) {
+                enchantmentCalculator$drawPanel(context,
+                        enchantmentCalculator$leftPanelX(), topPos, panelWidth, false);
+                if (errorMessage != null && calculateButton != null) {
+                    calculateButton.setTooltip(Tooltip.create(Component.translatable(errorMessage)));
                 }
             }
-            context.nextStratum();
-            for (AbstractWidget widget : calculatorWidgets) {
-                widget.render(context, mouseX, mouseY, delta);
+            if (page == Page.RESULT) {
+                int panelX = enchantmentCalculator$rightPanelX();
+                enchantmentCalculator$drawPanel(context, panelX, topPos, panelWidth, false);
+                painter.drawSideResult(context, panelX, panelWidth, mouseX, mouseY);
             }
         }
         context.nextStratum();
+        for (AbstractWidget widget : calculatorWidgets) widget.render(context, mouseX, mouseY, delta);
+        context.nextStratum();
+        enchantmentCalculator$drawIcons(context);
+    }
+
+    @Unique
+    private void enchantmentCalculator$drawIcons(GuiGraphics context) {
         for (CalculatorIconWidget icon : iconWidgets) {
             Button widget = icon.button();
             ResourceLocation texture = !widget.active ? icon.disabled()
@@ -140,58 +155,6 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
         if (separator) {
             context.fill(x + 7, y + 23, x + width - 7, y + 24, 0xFF777777);
             context.fill(x + 7, y + 24, x + width - 7, y + 25, 0xFFFFFFFF);
-        }
-    }
-
-    @Unique
-    private void enchantmentCalculator$drawSelection(GuiGraphics context, int panelX, boolean compact) {
-        int centerX = compact ? 88 : panelX + PANEL_WIDTH / 2;
-        int titleY = compact ? 9 : topPos + 9;
-        Component title = Component.translatable("enchantmentcalculator.ui.title");
-        context.drawString(font, title, centerX - font.width(title) / 2, titleY, 0xFF404040, false);
-        int maxRows = compact ? 4 : 6;
-        Component line = errorMessage == null
-                ? Component.literal(availableEnchantments.isEmpty() ? "0/0"
-                        : (scrollOffset + 1) + "-" + Math.min(scrollOffset + maxRows,
-                                availableEnchantments.size()) + "/" + availableEnchantments.size())
-                : Component.translatable(errorMessage);
-        int lineY = compact ? 30 : topPos + 127;
-        for (FormattedCharSequence wrapped : font.split(line, PANEL_WIDTH - 24)) {
-            context.drawString(font, wrapped, centerX - font.width(wrapped) / 2,
-                    lineY, errorMessage == null ? 0xFF404040 : 0xFFAA2222, false);
-            break;
-        }
-    }
-
-    @Unique
-    private void enchantmentCalculator$drawResult(
-            GuiGraphics context, int panelX, boolean compact, int mouseX, int mouseY) {
-        int originY = compact ? 0 : topPos;
-        int centerX = compact ? 88 : panelX + PANEL_WIDTH / 2;
-        Component title = Component.translatable("enchantmentcalculator.ui.plan");
-        context.drawString(font, title, centerX - font.width(title) / 2,
-                originY + 9, 0xFF404040, false);
-        if (result == null || result.getSteps().isEmpty()) return;
-        Component totals = Component.translatable("enchantmentcalculator.ui.summary",
-                result.getTotalLevels(), result.getTotalExperience());
-        context.drawString(font, totals, centerX - font.width(totals) / 2,
-                originY + 26, 0xFF404040, false);
-        CalculationResult.Step step = result.getSteps().get(stepIndex);
-        Component label = Component.translatable("enchantmentcalculator.ui.step_cost",
-                stepIndex + 1, result.getSteps().size(), step.getLevels());
-        context.drawString(font, label, centerX - font.width(label) / 2,
-                originY + 42, 0xFF404040, false);
-        int lineY = originY + 57;
-        for (FormattedCharSequence line : font.split(Component.literal(step.getDescription()), 154)) {
-            if (lineY > originY + 91) break;
-            context.drawString(font, line, panelX + 11, lineY, 0xFF303030, false);
-            lineY += 11;
-        }
-        int absoluteX = compact ? leftPos : panelX;
-        int absoluteY = compact ? topPos : originY;
-        if (mouseX >= absoluteX + 8 && mouseX < absoluteX + (compact ? 168 : PANEL_WIDTH - 8)
-                && mouseY >= absoluteY + 54 && mouseY < absoluteY + 100) {
-            context.setTooltipForNextFrame(Component.literal(step.getDescription()), mouseX, mouseY);
         }
     }
 
@@ -268,17 +231,22 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (page == Page.CLOSED || scrollY == 0) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
-        int x = enchantmentCalculator$isCompact() ? leftPos : enchantmentCalculator$panelX();
-        int width = enchantmentCalculator$isCompact() ? imageWidth : PANEL_WIDTH;
-        if (mouseX >= x && mouseX < x + width && mouseY >= topPos && mouseY < topPos + PANEL_HEIGHT) {
-            if (page == Page.SELECTION) {
-                int rows = enchantmentCalculator$isCompact() ? 4 : 6;
-                scrollOffset = Math.clamp(scrollOffset + (scrollY > 0 ? -1 : 1), 0,
-                        Math.max(0, availableEnchantments.size() - rows));
-            } else if (result != null) {
-                stepIndex = Math.clamp(stepIndex + (scrollY > 0 ? -1 : 1),
-                        0, result.getSteps().size() - 1);
-            }
+        int selectionX = enchantmentCalculator$isCompact() ? leftPos : enchantmentCalculator$leftPanelX();
+        int resultX = enchantmentCalculator$isCompact() ? leftPos : enchantmentCalculator$rightPanelX();
+        int panelWidth = enchantmentCalculator$isCompact() ? imageWidth : enchantmentCalculator$sidePanelWidth();
+        if (mouseY >= topPos && mouseY < topPos + PANEL_HEIGHT
+                && mouseX >= selectionX && mouseX < selectionX + panelWidth
+                && (page == Page.SELECTION || enchantmentCalculator$hasTwoSides())) {
+            int rows = enchantmentCalculator$isCompact() ? 4 : 6;
+            scrollOffset = Math.clamp(scrollOffset + (scrollY > 0 ? -1 : 1), 0,
+                    Math.max(0, availableEnchantments.size() - rows));
+            enchantmentCalculator$rebuildWidgets();
+            return true;
+        }
+        if (page == Page.RESULT && mouseY >= topPos && mouseY < topPos + PANEL_HEIGHT
+                && mouseX >= resultX && mouseX < resultX + panelWidth && result != null) {
+            stepIndex = Math.clamp(stepIndex + (scrollY > 0 ? -1 : 1),
+                    0, result.getSteps().size() - 1);
             enchantmentCalculator$rebuildWidgets();
             return true;
         }
@@ -302,20 +270,52 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
 
     @Unique
     private boolean enchantmentCalculator$isCompact() {
-        return width < imageWidth + PANEL_WIDTH + PANEL_GAP + EDGE_MARGIN * 2;
+        return !enchantmentCalculator$hasTwoSides() && !enchantmentCalculator$hasOneSide();
     }
 
     @Unique
-    private int enchantmentCalculator$panelX() {
+    private boolean enchantmentCalculator$hasTwoSides() {
+        int centeredSide = (width - imageWidth) / 2;
+        return centeredSide - PANEL_GAP - EDGE_MARGIN >= MIN_SIDE_WIDTH;
+    }
+
+    @Unique
+    private boolean enchantmentCalculator$hasOneSide() {
+        return width >= PANEL_WIDTH + PANEL_GAP + imageWidth + EDGE_MARGIN * 2;
+    }
+
+    @Unique
+    private int enchantmentCalculator$sidePanelWidth() {
+        if (enchantmentCalculator$hasTwoSides()) {
+            int centeredSide = (width - imageWidth) / 2;
+            return Math.min(PANEL_WIDTH, centeredSide - PANEL_GAP - EDGE_MARGIN);
+        }
+        return PANEL_WIDTH;
+    }
+
+    @Unique
+    private int enchantmentCalculator$leftPanelX() {
+        return leftPos - PANEL_GAP - enchantmentCalculator$sidePanelWidth();
+    }
+
+    @Unique
+    private int enchantmentCalculator$rightPanelX() {
         return leftPos + imageWidth + PANEL_GAP;
+    }
+
+    @Unique
+    private boolean enchantmentCalculator$pinFitsBelow() {
+        return topPos + imageHeight + 24 <= height;
     }
 
     @Unique
     private void enchantmentCalculator$reflowAnvil() {
         int centered = (width - imageWidth) / 2;
         int desired = centered;
-        if (!enchantmentCalculator$isCompact() && page != Page.CLOSED) {
-            desired = (width - imageWidth - PANEL_GAP - PANEL_WIDTH) / 2;
+        if (!enchantmentCalculator$hasTwoSides() && enchantmentCalculator$hasOneSide()
+                && page != Page.CLOSED) {
+            int groupX = (width - PANEL_WIDTH - PANEL_GAP - imageWidth) / 2;
+            desired = page == Page.SELECTION ? groupX + PANEL_WIDTH + PANEL_GAP : groupX;
         }
         if (leftPos != desired) {
             leftPos = desired;
@@ -346,95 +346,155 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
                         page = Page.CLOSED; enchantmentCalculator$rebuildWidgets();
                     });
         }
-        if (page == Page.SELECTION) enchantmentCalculator$buildSelection();
-        else enchantmentCalculator$buildResult();
+        if (enchantmentCalculator$isCompact()) {
+            if (page == Page.SELECTION) enchantmentCalculator$buildSelection();
+            else enchantmentCalculator$buildResult();
+        } else {
+            if (page == Page.SELECTION || enchantmentCalculator$hasTwoSides()) {
+                enchantmentCalculator$buildSideSelection();
+            }
+            if (page == Page.RESULT) enchantmentCalculator$buildSideResult();
+        }
     }
 
     @Unique
     private void enchantmentCalculator$buildSelection() {
-        boolean compact = enchantmentCalculator$isCompact();
-        int x = compact ? leftPos : enchantmentCalculator$panelX();
-        int y = topPos;
-        int rows = compact ? 4 : 6;
-        scrollOffset = Math.min(scrollOffset, Math.max(0, availableEnchantments.size() - rows));
-        if (compact) {
-            Button up = enchantmentCalculator$addIcon(x + 8, y + 25, 20, 20,
-                    "enchantmentcalculator.ui.scroll_up", AnvilTextures.UP_TEXTURE,
-                    AnvilTextures.UP_HOVER_TEXTURE, AnvilTextures.UP_DISABLED_TEXTURE,
-                    button -> { scrollOffset--; enchantmentCalculator$rebuildWidgets(); });
-            up.active = scrollOffset > 0;
-            Button down = enchantmentCalculator$addIcon(x + 148, y + 25, 20, 20,
-                    "enchantmentcalculator.ui.scroll_down", AnvilTextures.DOWN_TEXTURE,
-                    AnvilTextures.DOWN_HOVER_TEXTURE, AnvilTextures.DOWN_DISABLED_TEXTURE,
-                    button -> { scrollOffset++; enchantmentCalculator$rebuildWidgets(); });
-            down.active = scrollOffset + rows < availableEnchantments.size();
-        } else {
-            Button up = enchantmentCalculator$addIcon(x + 169, y + 10, 20, 20,
-                    "enchantmentcalculator.ui.scroll_up", AnvilTextures.UP_TEXTURE,
-                    AnvilTextures.UP_HOVER_TEXTURE, AnvilTextures.UP_DISABLED_TEXTURE,
-                    button -> { scrollOffset--; enchantmentCalculator$rebuildWidgets(); });
-            up.active = scrollOffset > 0;
-            Button down = enchantmentCalculator$addIcon(x + 169, y + 32, 20, 20,
-                    "enchantmentcalculator.ui.scroll_down", AnvilTextures.DOWN_TEXTURE,
-                    AnvilTextures.DOWN_HOVER_TEXTURE, AnvilTextures.DOWN_DISABLED_TEXTURE,
-                    button -> { scrollOffset++; enchantmentCalculator$rebuildWidgets(); });
-            down.active = scrollOffset + rows < availableEnchantments.size();
-            calculateButton = enchantmentCalculator$addIcon(x + 169, y + 54, 20, 20,
-                    "enchantmentcalculator.ui.calculate", AnvilTextures.OPEN_TEXTURE,
-                    AnvilTextures.OPEN_HOVER_TEXTURE, AnvilTextures.CALCULATE_DISABLED_TEXTURE,
-                    button -> enchantmentCalculator$calculate());
-            resetButton = enchantmentCalculator$addIcon(x + 169, y + 76, 20, 20,
-                    "enchantmentcalculator.ui.reset", AnvilTextures.RESET_TEXTURE,
-                    AnvilTextures.RESET_HOVER_TEXTURE, AnvilTextures.RESET_DISABLED_TEXTURE,
-                    button -> enchantmentCalculator$reset());
+        Button up = enchantmentCalculator$addIcon(leftPos + 8, topPos + 25, 20, 20,
+                "enchantmentcalculator.ui.scroll_up", AnvilTextures.UP_TEXTURE,
+                AnvilTextures.UP_HOVER_TEXTURE, AnvilTextures.UP_DISABLED_TEXTURE,
+                button -> enchantmentCalculator$scroll(-1));
+        up.active = scrollOffset > 0;
+        Button down = enchantmentCalculator$addIcon(leftPos + 148, topPos + 25, 20, 20,
+                "enchantmentcalculator.ui.scroll_down", AnvilTextures.DOWN_TEXTURE,
+                AnvilTextures.DOWN_HOVER_TEXTURE, AnvilTextures.DOWN_DISABLED_TEXTURE,
+                button -> enchantmentCalculator$scroll(1));
+        down.active = scrollOffset + 4 < availableEnchantments.size();
+
+        for (int row = 0; row < 4 && scrollOffset + row < availableEnchantments.size(); row++) {
+            enchantmentCalculator$addSlider(leftPos + 8, topPos + 47 + row * 20,
+                    160, 18, availableEnchantments.get(scrollOffset + row));
         }
-        for (int row = 0; row < rows && scrollOffset + row < availableEnchantments.size(); row++) {
-            Enchantment enchantment = availableEnchantments.get(scrollOffset + row);
-            EnchantmentLevelSlider slider = new EnchantmentLevelSlider(
-                    x + 8, y + (compact ? 47 + row * 20 : 10 + row * 22),
-                    compact ? 160 : 153, compact ? 18 : 20, enchantment,
-                    selectedEnchantments.getOrDefault(enchantment, 0),
-                    level -> enchantmentCalculator$setLevel(enchantment, level));
-            slider.active = enchantmentCalculator$isCompatible(enchantment);
-            sliders.add(slider);
-            calculatorWidgets.add(slider);
-            addRenderableWidget(slider);
-        }
-        int footerY = compact ? y + 126 : y + 144;
-        enchantmentCalculator$addButton(x + 8, footerY, 78, 18,
-                optimizationMode.getDisplayName(), button -> {
-                    optimizationMode = optimizationMode == OptimizationMode.LEVELS
-                            ? OptimizationMode.EXPERIENCE : OptimizationMode.LEVELS;
-                    enchantmentCalculator$rebuildWidgets();
-                });
-        if (compact) {
-            calculateButton = enchantmentCalculator$addButton(x + 8, y + 146, 78, 18,
-                    Component.translatable("enchantmentcalculator.ui.calculate_short"),
-                    button -> enchantmentCalculator$calculate());
-            resetButton = enchantmentCalculator$addButton(x + 90, y + 146, 78, 18,
-                    Component.translatable("enchantmentcalculator.ui.reset"),
-                    button -> enchantmentCalculator$reset());
-        }
+        enchantmentCalculator$addButton(leftPos + 8, topPos + 126, 78, 18,
+                Component.translatable("enchantmentcalculator.ui.import_books"),
+                button -> enchantmentCalculator$importBooks());
+        enchantmentCalculator$addButton(leftPos + 90, topPos + 126, 78, 18,
+                optimizationMode.getDisplayName(), button -> enchantmentCalculator$toggleMode());
+        calculateButton = enchantmentCalculator$addButton(leftPos + 8, topPos + 146, 78, 18,
+                Component.translatable("enchantmentcalculator.ui.calculate_short"),
+                button -> enchantmentCalculator$calculate());
+        resetButton = enchantmentCalculator$addButton(leftPos + 90, topPos + 146, 78, 18,
+                Component.translatable("enchantmentcalculator.ui.reset"),
+                button -> enchantmentCalculator$reset());
         enchantmentCalculator$updateSelectionControls();
     }
 
     @Unique
     private void enchantmentCalculator$buildResult() {
-        boolean compact = enchantmentCalculator$isCompact();
-        int x = compact ? leftPos : enchantmentCalculator$panelX();
-        int y = topPos;
-        int navigationY = compact ? y + 104 : y + 125;
-        Button previous = enchantmentCalculator$addButton(x + 8, navigationY, 76, 18,
+        Button previous = enchantmentCalculator$addButton(leftPos + 8, topPos + 104, 76, 18,
                 Component.translatable("enchantmentcalculator.ui.previous_step"),
                 button -> { stepIndex--; enchantmentCalculator$rebuildWidgets(); });
         previous.active = stepIndex > 0;
-        Button next = enchantmentCalculator$addButton(x + 92, navigationY, 76, 18,
+        Button next = enchantmentCalculator$addButton(leftPos + 92, topPos + 104, 76, 18,
                 Component.translatable("enchantmentcalculator.ui.next_step"),
                 button -> { stepIndex++; enchantmentCalculator$rebuildWidgets(); });
         next.active = result != null && stepIndex < result.getSteps().size() - 1;
-        enchantmentCalculator$addButton(x + 8, y + 145, 160, 18,
-                Component.translatable("enchantmentcalculator.ui.back_selection"),
+        Button back = enchantmentCalculator$addButton(leftPos + 8, topPos + 145, 78, 18,
+                Component.translatable("enchantmentcalculator.ui.edit_short"),
                 button -> { page = Page.SELECTION; enchantmentCalculator$rebuildWidgets(); });
+        back.setTooltip(Tooltip.create(Component.translatable("enchantmentcalculator.ui.back_selection")));
+    }
+
+    @Unique
+    private void enchantmentCalculator$buildSideSelection() {
+        int panelX = enchantmentCalculator$leftPanelX();
+        int panelWidth = enchantmentCalculator$sidePanelWidth();
+        int railX = panelX + panelWidth - 28;
+        int firstY = topPos + 10;
+        Button up = enchantmentCalculator$addIcon(railX, firstY, 20, 20,
+                "enchantmentcalculator.ui.scroll_up", AnvilTextures.UP_TEXTURE,
+                AnvilTextures.UP_HOVER_TEXTURE, AnvilTextures.UP_DISABLED_TEXTURE,
+                button -> enchantmentCalculator$scroll(-1));
+        up.active = scrollOffset > 0;
+        Button down = enchantmentCalculator$addIcon(railX, firstY + 22, 20, 20,
+                "enchantmentcalculator.ui.scroll_down", AnvilTextures.DOWN_TEXTURE,
+                AnvilTextures.DOWN_HOVER_TEXTURE, AnvilTextures.DOWN_DISABLED_TEXTURE,
+                button -> enchantmentCalculator$scroll(1));
+        down.active = scrollOffset + 6 < availableEnchantments.size();
+        calculateButton = enchantmentCalculator$addIcon(railX, firstY + 44, 20, 20,
+                "enchantmentcalculator.ui.calculate", AnvilTextures.OPEN_TEXTURE,
+                AnvilTextures.OPEN_HOVER_TEXTURE, AnvilTextures.CALCULATE_DISABLED_TEXTURE,
+                button -> enchantmentCalculator$calculate());
+        resetButton = enchantmentCalculator$addIcon(railX, firstY + 66, 20, 20,
+                "enchantmentcalculator.ui.reset", AnvilTextures.RESET_TEXTURE,
+                AnvilTextures.RESET_HOVER_TEXTURE, AnvilTextures.RESET_DISABLED_TEXTURE,
+                button -> enchantmentCalculator$reset());
+        for (int row = 0; row < 6 && scrollOffset + row < availableEnchantments.size(); row++) {
+            enchantmentCalculator$addSlider(panelX + 8, firstY + row * 22,
+                    panelWidth - 44, 20, availableEnchantments.get(scrollOffset + row));
+        }
+        int footerWidth = (panelWidth - 20) / 2;
+        Button importBooks = enchantmentCalculator$addButton(
+                panelX + 8, topPos + 144, footerWidth, 18,
+                Component.translatable("enchantmentcalculator.ui.import_books"),
+                button -> enchantmentCalculator$importBooks());
+        importBooks.setTooltip(Tooltip.create(importBooks.getMessage()));
+        Button mode = enchantmentCalculator$addButton(
+                panelX + 12 + footerWidth, topPos + 144, footerWidth, 18,
+                optimizationMode.getDisplayName(), button -> enchantmentCalculator$toggleMode());
+        mode.setTooltip(Tooltip.create(mode.getMessage()));
+        enchantmentCalculator$updateSelectionControls();
+    }
+
+    @Unique
+    private void enchantmentCalculator$buildSideResult() {
+        int panelX = enchantmentCalculator$rightPanelX();
+        int panelWidth = enchantmentCalculator$sidePanelWidth();
+        Button previous = enchantmentCalculator$addIcon(panelX + 9, topPos + 145, 12, 17,
+                "enchantmentcalculator.ui.previous_step", AnvilTextures.BACK_TEXTURE,
+                AnvilTextures.BACK_HOVER_TEXTURE, AnvilTextures.BACK_DISABLED_TEXTURE,
+                button -> { stepIndex--; enchantmentCalculator$rebuildWidgets(); });
+        previous.active = stepIndex > 0;
+        Button next = enchantmentCalculator$addIcon(panelX + panelWidth - 21, topPos + 145, 12, 17,
+                "enchantmentcalculator.ui.next_step", AnvilTextures.FORWARD_TEXTURE,
+                AnvilTextures.FORWARD_HOVER_TEXTURE, AnvilTextures.FORWARD_DISABLED_TEXTURE,
+                button -> { stepIndex++; enchantmentCalculator$rebuildWidgets(); });
+        next.active = result != null && stepIndex < result.getSteps().size() - 1;
+        if (!enchantmentCalculator$hasTwoSides()) {
+            Button edit = enchantmentCalculator$addButton(panelX + 8, topPos + 125, 20, 18,
+                    Component.literal("←"), button -> {
+                        page = Page.SELECTION; enchantmentCalculator$rebuildWidgets();
+                    });
+            edit.setTooltip(Tooltip.create(Component.translatable(
+                    "enchantmentcalculator.ui.back_selection")));
+        }
+    }
+
+    @Unique
+    private void enchantmentCalculator$addSlider(
+            int x, int y, int width, int height, Enchantment enchantment) {
+        EnchantmentLevelSlider slider = new EnchantmentLevelSlider(x, y, width, height,
+                enchantment, selectedEnchantments.getOrDefault(enchantment, 0),
+                level -> enchantmentCalculator$setLevel(enchantment, level));
+        slider.active = enchantmentCalculator$isCompatible(enchantment);
+        sliders.add(slider);
+        calculatorWidgets.add(slider);
+        addRenderableWidget(slider);
+    }
+
+    @Unique
+    private void enchantmentCalculator$scroll(int direction) {
+        int rows = enchantmentCalculator$isCompact() ? 4 : 6;
+        scrollOffset = Math.clamp(scrollOffset + direction, 0,
+                Math.max(0, availableEnchantments.size() - rows));
+        enchantmentCalculator$rebuildWidgets();
+    }
+
+    @Unique
+    private void enchantmentCalculator$toggleMode() {
+        optimizationMode = optimizationMode == OptimizationMode.LEVELS
+                ? OptimizationMode.EXPERIENCE : OptimizationMode.LEVELS;
+        result = null;
+        enchantmentCalculator$rebuildWidgets();
     }
 
     @Unique
@@ -494,6 +554,35 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
         result = null;
         errorMessage = null;
         enchantmentCalculator$rebuildWidgets();
+    }
+
+    @Unique
+    private void enchantmentCalculator$importBooks() {
+        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+        if (client.player == null || client.level == null) return;
+        for (int slot = 0; slot < client.player.getInventory().getContainerSize(); slot++) {
+            enchantmentCalculator$importBook(client.player.getInventory().getItem(slot));
+        }
+        enchantmentCalculator$importBook(menu.getSlot(1).getItem());
+        result = null;
+        errorMessage = null;
+        enchantmentCalculator$rebuildWidgets();
+    }
+
+    @Unique
+    private void enchantmentCalculator$importBook(ItemStack stack) {
+        if (!stack.is(Items.ENCHANTED_BOOK)) return;
+        ItemEnchantments enchantments = stack.getOrDefault(
+                DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY);
+        if (enchantments.size() != 1) return;
+        for (Holder<Enchantment> entry : enchantments.keySet()) {
+            Enchantment enchantment = entry.value();
+            if (!availableEnchantments.contains(enchantment)
+                    || !enchantmentCalculator$isCompatible(enchantment)) continue;
+            int level = enchantments.getLevel(entry);
+            selectedEnchantments.put(enchantment,
+                    Math.max(level, selectedEnchantments.getOrDefault(enchantment, 0)));
+        }
     }
 
     @Unique

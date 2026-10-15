@@ -14,6 +14,10 @@ _If you have an idea to improve the interface by redrawing the elements or by ch
 ## Since 2.0 update:
 - reworked gui
 - auto-enchantment function
+- improved calculate algorithm + added way to optimize by xp
+- added a "Use Book" feature that automatically takes books from your inventory and adds their enchantments to the calculator
+- 26.x support
+- added preset support for auto-enchantment
 
 **IMPORTANT!!!!!** Before using the auto-enchantment feature, please get approval from your server admins. Otherwise, use the Fair Play Edition
 
