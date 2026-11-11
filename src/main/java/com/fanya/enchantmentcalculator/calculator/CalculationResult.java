@@ -26,6 +26,8 @@ public final class CalculationResult {
 
     public static final class Step {
         private final String description;
+        private final String leftOperand;
+        private final String rightOperand;
         private final int levels;
         private final int experience;
         private final int priorWorkPenalty;
@@ -34,6 +36,8 @@ public final class CalculationResult {
 
         public Step(
                 String description,
+                String leftOperand,
+                String rightOperand,
                 int levels,
                 int experience,
                 int priorWorkPenalty,
@@ -41,6 +45,8 @@ public final class CalculationResult {
                 int rightMask
         ) {
             this.description = description;
+            this.leftOperand = leftOperand;
+            this.rightOperand = rightOperand;
             this.levels = levels;
             this.experience = experience;
             this.priorWorkPenalty = priorWorkPenalty;
@@ -50,6 +56,14 @@ public final class CalculationResult {
 
         public String getDescription() {
             return description;
+        }
+
+        public String getLeftOperand() {
+            return leftOperand;
+        }
+
+        public String getRightOperand() {
+            return rightOperand;
         }
 
         public int getLevels() {

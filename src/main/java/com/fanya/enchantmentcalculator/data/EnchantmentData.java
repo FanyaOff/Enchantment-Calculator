@@ -7,6 +7,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 
@@ -58,13 +59,14 @@ public final class EnchantmentData {
             return List.of();
         }
 
+        boolean book = stack.is(Items.BOOK) || stack.is(Items.ENCHANTED_BOOK);
         ItemEnchantments existing = stack.getOrDefault(
-                DataComponents.ENCHANTMENTS,
+                book ? DataComponents.STORED_ENCHANTMENTS : DataComponents.ENCHANTMENTS,
                 ItemEnchantments.EMPTY
         );
         List<Enchantment> result = new ArrayList<>();
         registry.listElements()
-                .filter(entry -> entry.value().canEnchant(stack))
+                .filter(entry -> book || entry.value().canEnchant(stack))
                 .filter(entry -> existing.getLevel(entry) == 0)
                 .filter(entry -> existing.keySet().stream()
                         .allMatch(current -> Enchantment.areCompatible(entry, current)))

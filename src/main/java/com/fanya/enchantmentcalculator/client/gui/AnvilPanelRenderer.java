@@ -86,19 +86,19 @@ public final class AnvilPanelRenderer {
         context.fill(insetX + insetWidth - 1, insetY, insetX + insetWidth, insetY + 88,
                 0xFFFFFFFF);
 
-        List<FormattedCharSequence> description = font.split(
-                Component.literal(step.getDescription()), insetWidth - 14
-        );
-        int maxLines = automaticStatus == null ? 6 : 4;
-        for (int line = 0; line < Math.min(description.size(), maxLines); line++) {
-            drawText(context, description.get(line),
-                    insetX + 7, insetY + 7 + line * 12, 0xFF292929);
-        }
+        drawText(context, Component.translatable("enchantmentcalculator.ui.left_operand"),
+                insetX + 7, insetY + 6, 0xFF454545);
+        drawOperandLines(context, step.getLeftOperand(), insetX + 7,
+                insetY + 18, insetWidth - 14, 2);
+        drawText(context, Component.translatable("enchantmentcalculator.ui.right_operand"),
+                insetX + 7, insetY + 43, 0xFF454545);
+        drawOperandLines(context, step.getRightOperand(), insetX + 7,
+                insetY + 55, insetWidth - 14, automaticStatus == null ? 2 : 1);
         if (automaticStatus != null) {
             List<FormattedCharSequence> status = font.split(automaticStatus, insetWidth - 14);
-            for (int line = 0; line < Math.min(status.size(), 2); line++) {
+            for (int line = 0; line < Math.min(status.size(), 1); line++) {
                 drawText(context, status.get(line),
-                        insetX + 7, insetY + 60 + line * 11, 0xFF8B2F1D);
+                        insetX + 7, insetY + 75, 0xFF8B2F1D);
             }
         }
 
@@ -115,6 +115,14 @@ public final class AnvilPanelRenderer {
                 topPos + (pinFitsBelow ? 148 : 130),
                 0xFF404040
         );
+    }
+
+    private void drawOperandLines(GuiGraphics context, String operand,
+            int x, int y, int width, int maxLines) {
+        List<FormattedCharSequence> lines = font.split(Component.literal(operand), width);
+        for (int line = 0; line < Math.min(lines.size(), maxLines); line++) {
+            drawText(context, lines.get(line), x, y + line * 11, 0xFF292929);
+        }
     }
 
     public void drawSideReadiness(
@@ -342,7 +350,10 @@ public final class AnvilPanelRenderer {
                 step.getLevels()
         );
         drawCenteredText(context, stepLabel, 88, 42, 0xFF404040);
-        drawWrapped(context, Component.literal(step.getDescription()), 57, 3, 0xFF303030);
+        drawWrapped(context, Component.translatable("enchantmentcalculator.ui.left_slot_short",
+                step.getLeftOperand()), 57, 1, 0xFF303030);
+        drawWrapped(context, Component.translatable("enchantmentcalculator.ui.right_slot_short",
+                step.getRightOperand()), 74, 1, 0xFF303030);
         if (mouseX >= leftPos + 8 && mouseX < leftPos + 168
                 && mouseY >= topPos + 54 && mouseY < topPos + 91) {
             context.setTooltipForNextFrame(

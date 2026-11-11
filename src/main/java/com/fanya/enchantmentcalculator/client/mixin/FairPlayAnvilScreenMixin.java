@@ -9,9 +9,11 @@ import com.fanya.enchantmentcalculator.client.gui.AnvilPanelRenderer;
 import com.fanya.enchantmentcalculator.client.gui.AnvilTextures;
 import com.fanya.enchantmentcalculator.client.gui.CalculatorIconWidget;
 import com.fanya.enchantmentcalculator.client.gui.EnchantmentLevelSlider;
+import com.fanya.enchantmentcalculator.client.plan.PinnedPlan;
 import com.fanya.enchantmentcalculator.data.EnchantmentData;
 import com.fanya.enchantmentcalculator.data.EnchantmentInfo;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -43,6 +45,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.lang.ref.WeakReference;
 
 /** The Fair Play screen only reads item data and displays a calculated plan. */
 @Mixin(AnvilScreen.class)
@@ -52,6 +55,7 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
     @Unique private static final int PANEL_GAP = 4;
     @Unique private static final int EDGE_MARGIN = 4;
     @Unique private static final int MIN_SIDE_WIDTH = 140;
+    @Unique private static PinnedPlan pinnedPlan;
 
     @Shadow private EditBox name;
 
@@ -61,6 +65,7 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
     @Unique private final Map<Enchantment, Integer> selectedEnchantments = new LinkedHashMap<>();
     @Unique private List<Enchantment> availableEnchantments = List.of();
     @Unique private ItemStack previousItem = ItemStack.EMPTY;
+    @Unique private ItemStack planItem = ItemStack.EMPTY;
     @Unique private CalculationResult result;
     @Unique private OptimizationMode optimizationMode = OptimizationMode.LEVELS;
     @Unique private Page page = Page.CLOSED;
@@ -69,6 +74,7 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
     @Unique private String errorMessage;
     @Unique private Button calculateButton;
     @Unique private Button resetButton;
+    @Unique private boolean pinnedView;
 
     private enum Page { CLOSED, SELECTION, RESULT }
 
@@ -78,6 +84,7 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
 
     @Inject(method = "subInit", at = @At("TAIL"))
     private void enchantmentCalculator$onSetup(CallbackInfo callback) {
+        enchantmentCalculator$restorePinnedPlan();
         enchantmentCalculator$refreshItem();
         enchantmentCalculator$rebuildWidgets();
     }
@@ -112,7 +119,7 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
             context.pose().popMatrix();
         } else {
             int panelWidth = enchantmentCalculator$sidePanelWidth();
-            if (page == Page.SELECTION || enchantmentCalculator$hasTwoSides()) {
+            if (page == Page.SELECTION || (enchantmentCalculator$hasTwoSides() && !pinnedView)) {
                 enchantmentCalculator$drawPanel(context,
                         enchantmentCalculator$leftPanelX(), topPos, panelWidth, false);
                 if (errorMessage != null && calculateButton != null) {
@@ -247,6 +254,7 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
                 && mouseX >= resultX && mouseX < resultX + panelWidth && result != null) {
             stepIndex = Math.clamp(stepIndex + (scrollY > 0 ? -1 : 1),
                     0, result.getSteps().size() - 1);
+            enchantmentCalculator$savePinnedPlan();
             enchantmentCalculator$rebuildWidgets();
             return true;
         }
@@ -258,9 +266,11 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
         ItemStack item = menu.getSlot(0).getItem();
         if (ItemStack.matches(item, previousItem)) return false;
         previousItem = item.copy();
+        if (result != null && (pinnedView || page == Page.RESULT)) return true;
         selectedEnchantments.clear();
         availableEnchantments = EnchantmentData.getApplicableEnchantments(item);
         result = null;
+        planItem = ItemStack.EMPTY;
         errorMessage = null;
         scrollOffset = 0;
         stepIndex = 0;
@@ -332,7 +342,7 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
         calculateButton = null;
         resetButton = null;
         enchantmentCalculator$reflowAnvil();
-        if (menu.getSlot(0).getItem().isEmpty()) return;
+        if (menu.getSlot(0).getItem().isEmpty() && !pinnedView && result == null) return;
         if (page == Page.CLOSED) {
             enchantmentCalculator$addIcon(leftPos + imageWidth - 24, topPos + 3, 20, 20,
                     "enchantmentcalculator.ui.open", AnvilTextures.OPEN_TEXTURE,
@@ -350,10 +360,15 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
             if (page == Page.SELECTION) enchantmentCalculator$buildSelection();
             else enchantmentCalculator$buildResult();
         } else {
-            if (page == Page.SELECTION || enchantmentCalculator$hasTwoSides()) {
+            if (page == Page.SELECTION || (enchantmentCalculator$hasTwoSides() && !pinnedView)) {
                 enchantmentCalculator$buildSideSelection();
             }
             if (page == Page.RESULT) enchantmentCalculator$buildSideResult();
+        }
+        if (page == Page.RESULT && !enchantmentCalculator$isCompact()
+                && enchantmentCalculator$pinFitsBelow()) {
+            enchantmentCalculator$addPinButton(leftPos, topPos + imageHeight + 4,
+                    imageWidth, 18);
         }
     }
 
@@ -392,16 +407,20 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
     private void enchantmentCalculator$buildResult() {
         Button previous = enchantmentCalculator$addButton(leftPos + 8, topPos + 104, 76, 18,
                 Component.translatable("enchantmentcalculator.ui.previous_step"),
-                button -> { stepIndex--; enchantmentCalculator$rebuildWidgets(); });
+                button -> { stepIndex--; enchantmentCalculator$savePinnedPlan();
+                    enchantmentCalculator$rebuildWidgets(); });
         previous.active = stepIndex > 0;
         Button next = enchantmentCalculator$addButton(leftPos + 92, topPos + 104, 76, 18,
                 Component.translatable("enchantmentcalculator.ui.next_step"),
-                button -> { stepIndex++; enchantmentCalculator$rebuildWidgets(); });
+                button -> { stepIndex++; enchantmentCalculator$savePinnedPlan();
+                    enchantmentCalculator$rebuildWidgets(); });
         next.active = result != null && stepIndex < result.getSteps().size() - 1;
         Button back = enchantmentCalculator$addButton(leftPos + 8, topPos + 145, 78, 18,
                 Component.translatable("enchantmentcalculator.ui.edit_short"),
-                button -> { page = Page.SELECTION; enchantmentCalculator$rebuildWidgets(); });
+                button -> enchantmentCalculator$editSelection());
+        back.active = !pinnedView && !menu.getSlot(0).getItem().isEmpty();
         back.setTooltip(Tooltip.create(Component.translatable("enchantmentcalculator.ui.back_selection")));
+        enchantmentCalculator$addPinButton(leftPos + 90, topPos + 145, 78, 18);
     }
 
     @Unique
@@ -452,21 +471,104 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
         Button previous = enchantmentCalculator$addIcon(panelX + 9, topPos + 145, 12, 17,
                 "enchantmentcalculator.ui.previous_step", AnvilTextures.BACK_TEXTURE,
                 AnvilTextures.BACK_HOVER_TEXTURE, AnvilTextures.BACK_DISABLED_TEXTURE,
-                button -> { stepIndex--; enchantmentCalculator$rebuildWidgets(); });
+                button -> { stepIndex--; enchantmentCalculator$savePinnedPlan();
+                    enchantmentCalculator$rebuildWidgets(); });
         previous.active = stepIndex > 0;
         Button next = enchantmentCalculator$addIcon(panelX + panelWidth - 21, topPos + 145, 12, 17,
                 "enchantmentcalculator.ui.next_step", AnvilTextures.FORWARD_TEXTURE,
                 AnvilTextures.FORWARD_HOVER_TEXTURE, AnvilTextures.FORWARD_DISABLED_TEXTURE,
-                button -> { stepIndex++; enchantmentCalculator$rebuildWidgets(); });
+                button -> { stepIndex++; enchantmentCalculator$savePinnedPlan();
+                    enchantmentCalculator$rebuildWidgets(); });
         next.active = result != null && stepIndex < result.getSteps().size() - 1;
         if (!enchantmentCalculator$hasTwoSides()) {
             Button edit = enchantmentCalculator$addButton(panelX + 8, topPos + 125, 20, 18,
-                    Component.literal("←"), button -> {
-                        page = Page.SELECTION; enchantmentCalculator$rebuildWidgets();
-                    });
+                    Component.literal("←"), button -> enchantmentCalculator$editSelection());
+            edit.active = !pinnedView && !menu.getSlot(0).getItem().isEmpty();
             edit.setTooltip(Tooltip.create(Component.translatable(
                     "enchantmentcalculator.ui.back_selection")));
         }
+        if (!enchantmentCalculator$pinFitsBelow()) {
+            enchantmentCalculator$addPinButton(panelX + 25, topPos + 145,
+                    panelWidth - 50, 18);
+        }
+    }
+
+    @Unique
+    private void enchantmentCalculator$addPinButton(int x, int y, int width, int height) {
+        String key = pinnedView ? "enchantmentcalculator.ui.unpin_result"
+                : "enchantmentcalculator.ui.pin_result";
+        Button pin = enchantmentCalculator$addButton(x, y, width, height,
+                Component.translatable(width < 100
+                        ? (pinnedView ? "enchantmentcalculator.ui.unpin_short"
+                                : "enchantmentcalculator.ui.pin_short") : key),
+                button -> enchantmentCalculator$togglePin());
+        pin.setTooltip(Tooltip.create(Component.translatable(key)));
+    }
+
+    @Unique
+    private void enchantmentCalculator$restorePinnedPlan() {
+        Minecraft client = Minecraft.getInstance();
+        if (pinnedPlan == null) return;
+        if (pinnedPlan.world().get() != client.level) {
+            pinnedPlan = null;
+            return;
+        }
+        result = pinnedPlan.result();
+        selectedEnchantments.clear();
+        for (EnchantmentCombination selection : pinnedPlan.selections()) {
+            selectedEnchantments.put(selection.enchantment(), selection.level());
+        }
+        optimizationMode = pinnedPlan.mode();
+        planItem = pinnedPlan.item().copy();
+        stepIndex = Math.clamp(pinnedPlan.shownStep(), 0, result.getSteps().size() - 1);
+        previousItem = menu.getSlot(0).getItem().copy();
+        pinnedView = true;
+        page = Page.RESULT;
+    }
+
+    @Unique
+    private void enchantmentCalculator$savePinnedPlan() {
+        Minecraft client = Minecraft.getInstance();
+        if (!pinnedView || client.level == null || result == null) return;
+        List<EnchantmentCombination> selections = new ArrayList<>();
+        for (Map.Entry<Enchantment, Integer> entry : selectedEnchantments.entrySet()) {
+            selections.add(new EnchantmentCombination(entry.getKey(), entry.getValue()));
+        }
+        pinnedPlan = new PinnedPlan(new WeakReference<>(client.level), result,
+                selections, planItem, optimizationMode, 0, stepIndex);
+    }
+
+    @Unique
+    private void enchantmentCalculator$togglePin() {
+        if (!pinnedView) {
+            if (result == null) return;
+            pinnedView = true;
+            enchantmentCalculator$savePinnedPlan();
+        } else {
+            pinnedView = false;
+            pinnedPlan = null;
+            if (menu.getSlot(0).getItem().isEmpty()) {
+                result = null;
+                selectedEnchantments.clear();
+                availableEnchantments = List.of();
+                page = Page.CLOSED;
+            }
+        }
+        enchantmentCalculator$rebuildWidgets();
+    }
+
+    @Unique
+    private void enchantmentCalculator$editSelection() {
+        if (pinnedView) return;
+        ItemStack item = menu.getSlot(0).getItem();
+        availableEnchantments = EnchantmentData.getApplicableEnchantments(item);
+        if (!ItemStack.isSameItemSameComponents(item, planItem)) {
+            selectedEnchantments.clear();
+        }
+        result = null;
+        planItem = ItemStack.EMPTY;
+        page = item.isEmpty() ? Page.CLOSED : Page.SELECTION;
+        enchantmentCalculator$rebuildWidgets();
     }
 
     @Unique
@@ -593,6 +695,7 @@ public abstract class FairPlayAnvilScreenMixin extends ItemCombinerScreen<AnvilM
         try {
             result = EnchantmentCalculator.calculate(menu.getSlot(0).getItem(),
                     selections, optimizationMode);
+            planItem = menu.getSlot(0).getItem().copy();
             errorMessage = null;
             stepIndex = 0;
             page = Page.RESULT;

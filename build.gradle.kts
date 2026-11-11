@@ -15,7 +15,6 @@ sourceSets.main {
         java.exclude(
             "**/client/automation/**",
             "**/client/preset/**",
-            "**/client/plan/**",
             "**/client/gui/AnvilPresetView.java",
             "**/client/mixin/AnvilSyncMixin.java",
             "**/client/mixin/AnvilExperienceMixin.java"
@@ -49,7 +48,7 @@ java {
     withSourcesJar()
     sourceCompatibility = JavaVersion.toVersion(targetJava)
     targetCompatibility = JavaVersion.toVersion(targetJava)
-    toolchain.languageVersion = JavaLanguageVersion.of(26)
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
 }
 
 tasks.withType<JavaCompile>().configureEach {

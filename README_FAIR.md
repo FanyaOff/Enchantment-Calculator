@@ -15,6 +15,8 @@ _If you have an idea to improve the interface by redrawing the elements or by ch
 
 This edition helps you plan enchantments, but leaves the anvil work to you. Pick the enchantments you want, choose whether to save levels or XP, and follow the steps on screen. **Use Books** reads the enchanted books in your inventory and adds their enchantments to the calculator; it does not move or use the books.
 
+After calculating, the result stays open while you move items through the anvil. **Pin Result** keeps the plan when you close and reopen the anvil in the same world. **Unpin Result** releases it; use Edit to start a new calculation. Books and enchanted books can also be placed in the first anvil slot as the target of a calculation.
+
 There are no presets or auto-enchant controls in this edition. The mod does not click inventory slots, put items in the anvil, or take the result for you. The auto-enchantment notes below describe the regular edition.
 
 ## Since 2.0 update:

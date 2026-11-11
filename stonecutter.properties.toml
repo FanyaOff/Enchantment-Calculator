@@ -1,7 +1,7 @@
 mod.id = "enchantmentcalculator"
 mod.name = "Enchantment Calculator"
 mod.group = "com.fanya"
-mod.version = "2.0.0"
+mod.version = "2.0.1"
 
 deps.fabric_loader = "0.19.5"
 loomx.loom_version = "1.18-SNAPSHOT"

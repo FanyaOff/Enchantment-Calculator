@@ -62,24 +62,15 @@ public final class EnchantmentCalculator {
 
         List<CalculationResult.Step> steps = new ArrayList<>();
         for (AnvilOptimizer.Merge merge : result.steps()) {
-            int combinedMask = merge.left().mask() | merge.right().mask();
-            List<String> includedBooks = new ArrayList<>();
-            for (int index = 0; index < bookNames.size(); index++) {
-                if ((combinedMask & (1 << (index + 1))) != 0) {
-                    includedBooks.add(bookNames.get(index));
-                }
-            }
-            String groupedBooks = Component.translatable(
-                    "enchantmentcalculator.book", String.join(" + ", includedBooks)
-            ).getString();
-            String summary = (combinedMask & 1) == 0
-                    ? groupedBooks
-                    : itemName + " + " + groupedBooks;
+            String left = operandName(merge.left().mask(), itemName, bookNames);
+            String right = operandName(merge.right().mask(), itemName, bookNames);
             String description = Component.translatable(
-                    "enchantmentcalculator.combine_grouped", summary
+                    "enchantmentcalculator.combine_ordered", left, right
             ).getString();
             steps.add(new CalculationResult.Step(
                     description,
+                    left,
+                    right,
                     merge.levels(),
                     merge.experience(),
                     merge.priorPenalty(),
@@ -89,6 +80,22 @@ public final class EnchantmentCalculator {
         }
 
         return new CalculationResult(steps, result.totalLevels(), result.totalExperience());
+    }
+
+    static String operandName(int mask, String itemName, List<String> bookNames) {
+        List<String> includedBooks = new ArrayList<>();
+        for (int index = 0; index < bookNames.size(); index++) {
+            if ((mask & (1 << (index + 1))) != 0) {
+                includedBooks.add(bookNames.get(index));
+            }
+        }
+        if ((mask & 1) != 0) {
+            return includedBooks.isEmpty() ? itemName
+                    : itemName + " (" + String.join(", ", includedBooks) + ")";
+        }
+        return Component.translatable(
+                "enchantmentcalculator.book", String.join(", ", includedBooks)
+        ).getString();
     }
 
     static int workFromRepairCost(int repairCost) {
