@@ -35,6 +35,11 @@ Found a bug, errors in calculations, have a suggestion? Please report it my our 
 
 ## Screenshots
 
+**Fair Play**
+
+<img width="1194" height="373" alt="image" src="https://github.com/user-attachments/assets/6a7156a6-1504-42b5-9721-25869d46679b" />
+
+
 **Main gui**
 
 <img width="1280" height="720" alt="изображение" src="https://github.com/user-attachments/assets/9803feeb-d873-4d4c-8c22-f000a76785d8" />
